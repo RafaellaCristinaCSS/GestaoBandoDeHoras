@@ -1,0 +1,30 @@
+AppName,TableName,DisplayTableName,HasInheritance,ColumnName,DisplayColumnName,Permission,Type,Mandatory,PrimaryKey,ForeignKey,RelationshipType,CompositionType,TargetTable,IsRequired
+Portal,Funcionario,Funcionário,FALSE,FuncionarioId,Funcionário Id,Public,Int,TRUE,TRUE,FALSE,,,,FALSE
+Portal,Funcionario,Funcionário,FALSE,Nome,Nome,Public,String,TRUE,FALSE,FALSE,,,,FALSE
+Portal,Funcionario,Funcionário,FALSE,Cargo,Cargo,Public,String,TRUE,FALSE,FALSE,,,,FALSE
+Portal,Funcionario,Funcionário,FALSE,CargaHorariaSemanal,Carga Horária Semanal,Public,Int,TRUE,FALSE,FALSE,,,,FALSE
+Portal,Funcionario,Funcionário,FALSE,Ativo,Ativo,Public,Boolean,TRUE,FALSE,FALSE,,,,FALSE
+
+Portal,Escala,Escala,FALSE,EscalaId,Escala Id,Public,Int,TRUE,TRUE,FALSE,,,,FALSE
+Portal,Escala,Escala,FALSE,FuncionarioId,Funcionário,Public,Int,TRUE,FALSE,TRUE,ManyToOne,Association,Funcionario,TRUE
+Portal,Escala,Escala,FALSE,DiaSemana,Dia da Semana,Public,String,TRUE,FALSE,FALSE,,,,FALSE
+Portal,Escala,Escala,FALSE,HoraInicio,Hora Inicial,Public,Time,TRUE,FALSE,FALSE,,,,FALSE
+Portal,Escala,Escala,FALSE,HoraFim,Hora Final,Public,Time,TRUE,FALSE,FALSE,,,,FALSE
+Portal,Escala,Escala,FALSE,HorasPrevistas,Horas Previstas,Public,Decimal,TRUE,FALSE,FALSE,,,,FALSE
+Portal,Escala,Escala,FALSE,Folga,Folga,Public,Boolean,TRUE,FALSE,FALSE,,,,FALSE
+
+Portal,RegistroPonto,Registro de Ponto,FALSE,RegistroPontoId,Registro Ponto Id,Public,Int,TRUE,TRUE,FALSE,,,,FALSE
+Portal,RegistroPonto,Registro de Ponto,FALSE,FuncionarioId,Funcionário,Public,Int,TRUE,FALSE,TRUE,ManyToOne,Association,Funcionario,TRUE
+Portal,RegistroPonto,Registro de Ponto,FALSE,Data,Data,Public,Date,TRUE,FALSE,FALSE,,,,FALSE
+Portal,RegistroPonto,Registro de Ponto,FALSE,HoraEntrada,Hora Entrada,Public,Time,FALSE,FALSE,FALSE,,,,FALSE
+Portal,RegistroPonto,Registro de Ponto,FALSE,HoraAlmocoInicio,Hora Almoço Início,Public,Time,FALSE,FALSE,FALSE,,,,FALSE
+Portal,RegistroPonto,Registro de Ponto,FALSE,HoraAlmocoFim,Hora Almoço Fim,Public,Time,FALSE,FALSE,FALSE,,,,FALSE
+Portal,RegistroPonto,Registro de Ponto,FALSE,HoraSaida,Hora Saída,Public,Time,FALSE,FALSE,FALSE,,,,FALSE
+Portal,RegistroPonto,Registro de Ponto,FALSE,Presenca,Presença,Public,Boolean,TRUE,FALSE,FALSE,,,,FALSE
+Portal,RegistroPonto,Registro de Ponto,FALSE,Observacao,Observação,Public,String,FALSE,FALSE,FALSE,,,,FALSE
+
+Portal,Ferias,Férias,FALSE,FeriasId,Férias Id,Public,Int,TRUE,TRUE,FALSE,,,,FALSE
+Portal,Ferias,Férias,FALSE,FuncionarioId,Funcionário,Public,Int,TRUE,FALSE,TRUE,ManyToOne,Association,Funcionario,TRUE
+Portal,Ferias,Férias,FALSE,DataInicio,Data Início,Public,Date,TRUE,FALSE,FALSE,,,,FALSE
+Portal,Ferias,Férias,FALSE,DataFim,Data Fim,Public,Date,TRUE,FALSE,FALSE,,,,FALSE
+Portal,Ferias,Férias,FALSE,Observacao,Observação,Public,String,FALSE,FALSE,FALSE,,,,FALSE
