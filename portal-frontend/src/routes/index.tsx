@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { HashRouter as Router, Routes, Route } from 'react-router-dom'
 import { MainLayout } from '@/layouts/MainLayout'
 import { FuncionariosPage } from '@/pages/FuncionariosPage'
 import { EscalasPage } from '@/pages/EscalasPage'
@@ -50,7 +50,7 @@ export function AppRoutes() {
             </MainLayout>
           }
         />
-        <Route path="/" element={<MainLayout><FuncionariosPage /></MainLayout>} />
+        <Route path="/" element={<MainLayout><RegistroPontoPage /></MainLayout>} />
       </Routes>
     </Router>
   )

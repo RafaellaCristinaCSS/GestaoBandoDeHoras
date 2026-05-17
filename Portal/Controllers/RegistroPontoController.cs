@@ -6,6 +6,7 @@ using Portal.DTOs;
 namespace Portal.Controllers
 {
     [ApiController]
+    [Route("api/registro-ponto")]
     [Route("api/[controller]")]
     [Authorize(Policy = "Public")]
     public class RegistroPontoController : ControllerBase

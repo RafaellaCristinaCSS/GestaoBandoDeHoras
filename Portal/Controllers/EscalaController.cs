@@ -6,6 +6,7 @@ using Portal.DTOs;
 namespace Portal.Controllers
 {
     [ApiController]
+    [Route("api/escalas")]
     [Route("api/[controller]")]
     [Authorize(Policy = "Public")]
     public class EscalaController : ControllerBase

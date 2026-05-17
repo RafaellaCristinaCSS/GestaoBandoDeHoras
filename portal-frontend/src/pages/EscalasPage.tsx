@@ -9,7 +9,6 @@ import { Modal } from '@/components/Modal'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EscalaForm, EscalaFormData } from '@/components/EscalaForm'
 import { Toast } from '@/components/Toast'
-import { Escala } from '@/types/api'
 
 const diasSemana = [
   'Segunda',
@@ -89,11 +88,11 @@ export function EscalasPage() {
     },
   })
 
-  const handleSubmit = (data: EscalaFormData & { funcionarioId: number }) => {
+  const handleSubmit = async (data: EscalaFormData & { funcionarioId: number }) => {
     if (editingId) {
-      updateMutation.mutate({ id: editingId, data })
+      await updateMutation.mutateAsync({ id: editingId, data })
     } else {
-      createMutation.mutate(data)
+      await createMutation.mutateAsync(data)
     }
   }
 
