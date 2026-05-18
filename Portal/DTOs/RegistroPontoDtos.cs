@@ -10,7 +10,7 @@ namespace Portal.DTOs
         public string? AlmocInicio { get; set; }
         public string? AlmocFim { get; set; }
         public string? Saida { get; set; }
-        public bool Presenca { get; set; }
+        public bool Presenca { get; set; } = true;
         public string? Observacao { get; set; }
 
         public int CreatedByUserId { get; set; }

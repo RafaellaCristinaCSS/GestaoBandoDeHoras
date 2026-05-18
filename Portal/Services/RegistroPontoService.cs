@@ -75,7 +75,7 @@ namespace Portal.Services
                         HoraAlmocoInicio = string.Empty,
                         HoraAlmocoFim = string.Empty,
                         HoraSaida = string.Empty,
-                        Presenca = false,
+                        Presenca = true,
                         Observacao = string.Empty,
                         CreatedByUserId = 0,
                         StartDate = DateTime.UtcNow,
