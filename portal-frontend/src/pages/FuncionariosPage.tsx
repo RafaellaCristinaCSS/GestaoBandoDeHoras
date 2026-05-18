@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, Edit2 } from 'lucide-react'
+import { Plus, Edit2 } from 'lucide-react'
 import { funcionarioService } from '@/services/funcionarioService'
 import { Loading } from '@/components/Loading'
 import { EmptyState } from '@/components/EmptyState'
 import { Modal } from '@/components/Modal'
-import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { FuncionarioForm, FuncionarioFormData } from '@/components/FuncionarioForm'
 import { Funcionario } from '@/types/api'
 import { Toast } from '@/components/Toast'
@@ -14,7 +13,6 @@ export function FuncionariosPage() {
   const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
-  const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; name: string } | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 10
@@ -48,18 +46,6 @@ export function FuncionariosPage() {
     },
     onError: () => {
       setToast({ message: 'Erro ao atualizar funcionário', type: 'error' })
-    },
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: number) => funcionarioService.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['funcionarios'] })
-      setDeleteConfirm(null)
-      setToast({ message: 'Funcionário removido com sucesso!', type: 'success' })
-    },
-    onError: () => {
-      setToast({ message: 'Erro ao remover funcionário', type: 'error' })
     },
   })
 
@@ -170,13 +156,6 @@ export function FuncionariosPage() {
                           <Edit2 size={16} />
                           Editar
                         </button>
-                        <button
-                          onClick={() => setDeleteConfirm({ id: func.id, name: func.nome })}
-                          className="text-red-600 hover:text-red-800 flex items-center gap-1"
-                        >
-                          <Trash2 size={16} />
-                          Remover
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -222,16 +201,6 @@ export function FuncionariosPage() {
           isLoading={createMutation.isPending || updateMutation.isPending}
         />
       </Modal>
-
-      {deleteConfirm && (
-        <ConfirmDialog
-          isOpen
-          title="Confirmar exclusão"
-          message={`Tem certeza que deseja remover ${deleteConfirm.name}?`}
-          onConfirm={() => deleteMutation.mutate(deleteConfirm.id)}
-          onCancel={() => setDeleteConfirm(null)}
-        />
-      )}
     </div>
   )
 }
