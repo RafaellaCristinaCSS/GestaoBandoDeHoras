@@ -53,18 +53,26 @@ namespace Portal.Services
             if (funcionarioId.HasValue && mes.HasValue && ano.HasValue)
             {
                 var registrosMes = (await _repository.GetFilteredAsync(funcionarioId, mes, ano)).ToList();
-                var diasMes = DateTime.DaysInMonth(ano.Value, mes.Value);
+                var dataInicio = new DateTime(ano.Value,mes.Value,1).AddMonths(-1).AddDays(20);
 
-                for (var dia = 1; dia <= diasMes; dia++)
+                var dataFim = new DateTime(ano.Value,mes.Value,1).AddDays(21);
+
+                for (var dataAtual = dataInicio; dataAtual <= dataFim; dataAtual = dataAtual.AddDays(1))
                 {
-                    var data = new DateTime(ano.Value, mes.Value, dia, 0, 0, 0, DateTimeKind.Utc);
+                    var data = new DateTime(
+                        dataAtual.Year,
+                        dataAtual.Month,
+                        dataAtual.Day,
+                        0,
+                        0,  
+                        0,
+                        DateTimeKind.Utc);
                     var existe = registrosMes.Any(r => r.Data.Date == data.Date);
                     if (existe)
                         continue;
 
                     var novo = new RegistroPonto
                     {
-                        RegistroPontoId = funcionarioId.Value,
                         FuncionarioId = funcionarioId.Value,
                         Data = data,
                         HoraEntrada = string.Empty,

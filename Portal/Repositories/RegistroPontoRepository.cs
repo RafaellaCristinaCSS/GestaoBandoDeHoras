@@ -33,14 +33,23 @@ namespace Portal.Repositories
             if (funcionarioId.HasValue)
             {
                 var id = funcionarioId.Value;
-                query = query.Where(x => x.FuncionarioId == id || x.RegistroPontoId == id);
+                query = query.Where(x => x.FuncionarioId == id);
             }
 
-            if (mes.HasValue)
-                query = query.Where(x => x.Data.Month == mes.Value);
+            if (mes.HasValue && ano.HasValue)
+            {
+                var dataInicio = new DateTime(ano.Value,mes.Value,1,0,0,0,DateTimeKind.Utc).AddMonths(-1).AddDays(21);
+                var dataFimExclusiva = new DateTime(ano.Value,mes.Value,22,0,0,0,DateTimeKind.Utc);
+                query = query.Where(x => x.Data >= dataInicio && x.Data < dataFimExclusiva);
+            }
+            else
+            {
+                if (mes.HasValue)
+                    query = query.Where(x => x.Data.Month == mes.Value);
 
-            if (ano.HasValue)
-                query = query.Where(x => x.Data.Year == ano.Value);
+                if (ano.HasValue)
+                    query = query.Where(x => x.Data.Year == ano.Value);
+            }
 
             return await query.OrderBy(x => x.Data).ToListAsync();
         }
