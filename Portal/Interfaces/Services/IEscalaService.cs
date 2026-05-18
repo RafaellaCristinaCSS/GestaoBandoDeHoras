@@ -12,5 +12,6 @@ namespace Portal.Services
         Task<EscalaReadDto> CreateAsync(EscalaCreateDto dto);
         Task<bool> UpdateAsync(int id, EscalaUpdateDto dto);
         Task<bool> DeleteAsync(int id);
+        Task CreateEscalasPadraoAsync(int funcionarioId);
     }
 }

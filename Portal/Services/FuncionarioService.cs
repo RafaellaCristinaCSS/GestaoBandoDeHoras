@@ -11,10 +11,12 @@ namespace Portal.Services
     public class FuncionarioService : IFuncionarioService
     {
         private readonly IFuncionarioRepository _repository;
+        private readonly IEscalaService _escalaService;
 
-        public FuncionarioService(IFuncionarioRepository repository)
+        public FuncionarioService(IFuncionarioRepository repository, IEscalaService escalaService)
         {
             _repository = repository;
+            _escalaService = escalaService;
         }
 
         public async Task<IEnumerable<FuncionarioReadDto>> GetAllAsync()
@@ -75,6 +77,9 @@ namespace Portal.Services
 
             await _repository.AddAsync(entity);
             await _repository.SaveChangesAsync();
+
+            // Gerar escalas padrão para o novo funcionário
+            await _escalaService.CreateEscalasPadraoAsync(entity.Id);
 
             return await GetByIdAsync(entity.Id)!;
         }

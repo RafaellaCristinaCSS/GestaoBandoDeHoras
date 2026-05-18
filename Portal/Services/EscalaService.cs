@@ -142,5 +142,26 @@ namespace Portal.Services
             await _repository.SaveChangesAsync();
             return true;
         }
+
+        public async Task CreateEscalasPadraoAsync(int funcionarioId)
+        {
+            // Segunda a quinta: 7:00 às 17:00 (10 horas)
+            // Sexta: 7:00 às 16:00 (9 horas)
+            var escalas = new List<Escala>
+            {
+                new Escala { EscalaId = funcionarioId, FuncionarioId = funcionarioId, DiaSemana = "0", HoraInicio = "07:00", HoraFim = "17:00", HorasPrevistas = 10, Folga = false, StartDate = DateTime.UtcNow, Excluded = false }, // Segunda
+                new Escala { EscalaId = funcionarioId, FuncionarioId = funcionarioId, DiaSemana = "1", HoraInicio = "07:00", HoraFim = "17:00", HorasPrevistas = 10, Folga = false, StartDate = DateTime.UtcNow, Excluded = false }, // Terça
+                new Escala { EscalaId = funcionarioId, FuncionarioId = funcionarioId, DiaSemana = "2", HoraInicio = "07:00", HoraFim = "17:00", HorasPrevistas = 10, Folga = false, StartDate = DateTime.UtcNow, Excluded = false }, // Quarta
+                new Escala { EscalaId = funcionarioId, FuncionarioId = funcionarioId, DiaSemana = "3", HoraInicio = "07:00", HoraFim = "17:00", HorasPrevistas = 10, Folga = false, StartDate = DateTime.UtcNow, Excluded = false }, // Quinta
+                new Escala { EscalaId = funcionarioId, FuncionarioId = funcionarioId, DiaSemana = "4", HoraInicio = "07:00", HoraFim = "16:00", HorasPrevistas = 9, Folga = false, StartDate = DateTime.UtcNow, Excluded = false }  // Sexta
+            };
+
+            foreach (var escala in escalas)
+            {
+                await _repository.AddAsync(escala);
+            }
+
+            await _repository.SaveChangesAsync();
+        }
     }
 }
