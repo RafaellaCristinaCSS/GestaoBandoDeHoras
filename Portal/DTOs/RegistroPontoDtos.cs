@@ -4,12 +4,12 @@ namespace Portal.DTOs
 {
     public class RegistroPontoCreateDto
     {
-        public int RegistroPontoId { get; set; }
+        public int FuncionarioId { get; set; }
         public DateTime Data { get; set; }
-        public string? HoraEntrada { get; set; }
-        public string? HoraAlmocoInicio { get; set; }
-        public string? HoraAlmocoFim { get; set; }
-        public string? HoraSaida { get; set; }
+        public string? Entrada { get; set; }
+        public string? AlmocInicio { get; set; }
+        public string? AlmocFim { get; set; }
+        public string? Saida { get; set; }
         public bool Presenca { get; set; }
         public string? Observacao { get; set; }
 
@@ -19,12 +19,12 @@ namespace Portal.DTOs
     public class RegistroPontoUpdateDto
     {
         public int Id { get; set; }
-        public int? RegistroPontoId { get; set; }
+        public int? FuncionarioId { get; set; }
         public DateTime? Data { get; set; }
-        public string? HoraEntrada { get; set; }
-        public string? HoraAlmocoInicio { get; set; }
-        public string? HoraAlmocoFim { get; set; }
-        public string? HoraSaida { get; set; }
+        public string? Entrada { get; set; }
+        public string? AlmocInicio { get; set; }
+        public string? AlmocFim { get; set; }
+        public string? Saida { get; set; }
         public bool? Presenca { get; set; }
         public string? Observacao { get; set; }
 
@@ -34,14 +34,15 @@ namespace Portal.DTOs
     public class RegistroPontoReadDto
     {
         public int Id { get; set; }
-        public int RegistroPontoId { get; set; }
+        public int FuncionarioId { get; set; }
         public DateTime Data { get; set; }
-        public string? HoraEntrada { get; set; }
-        public string? HoraAlmocoInicio { get; set; }
-        public string? HoraAlmocoFim { get; set; }
-        public string? HoraSaida { get; set; }
+        public string? Entrada { get; set; }
+        public string? AlmocInicio { get; set; }
+        public string? AlmocFim { get; set; }
+        public string? Saida { get; set; }
         public bool Presenca { get; set; }
         public string? Observacao { get; set; }
+        public string Status { get; set; } = "Falta";
 
         public string? FuncionarioName { get; set; }
 

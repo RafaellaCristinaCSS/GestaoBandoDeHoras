@@ -19,9 +19,9 @@ namespace Portal.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll([FromQuery] int? funcionarioId = null, [FromQuery] int? mes = null, [FromQuery] int? ano = null)
         {
-            var result = await _service.GetAllAsync();
+            var result = await _service.GetAllAsync(funcionarioId, mes, ano);
             return Ok(result);
         }
 

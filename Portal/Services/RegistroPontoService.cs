@@ -12,29 +12,84 @@ namespace Portal.Services
     {
         private readonly IRegistroPontoRepository _repository;
 
+        private static string BuildStatus(RegistroPonto e)
+        {
+            if (!e.Presenca)
+                return "Falta";
+
+            if (string.IsNullOrWhiteSpace(e.HoraEntrada) &&
+                string.IsNullOrWhiteSpace(e.HoraSaida))
+                return "Falta";
+
+            return "Presente";
+        }
+
+        private static RegistroPontoReadDto ToReadDto(RegistroPonto e)
+        {
+            return new RegistroPontoReadDto
+            {
+                Id = e.Id,
+                FuncionarioId = e.FuncionarioId ?? e.RegistroPontoId,
+                Data = e.Data,
+                Entrada = e.HoraEntrada,
+                AlmocInicio = e.HoraAlmocoInicio,
+                AlmocFim = e.HoraAlmocoFim,
+                Saida = e.HoraSaida,
+                Presenca = e.Presenca,
+                Observacao = e.Observacao,
+                Status = BuildStatus(e),
+                FuncionarioName = e.Funcionario?.Nome,
+                CreatedByUserId = e.CreatedByUserId,
+                UpdatedByUserId = e.UpdatedByUserId,
+                StartDate = e.StartDate,
+                ChangeDate = e.ChangeDate,
+                Excluded = e.Excluded
+            };
+        }
+
         public RegistroPontoService(IRegistroPontoRepository repository)
         {
             _repository = repository;
         }
 
-        public async Task<IEnumerable<RegistroPontoReadDto>> GetAllAsync()
+        public async Task<IEnumerable<RegistroPontoReadDto>> GetAllAsync(int? funcionarioId = null, int? mes = null, int? ano = null)
         {
-            var list = await _repository.GetAllAsync();
-            return list.Select(e => new RegistroPontoReadDto
+            if (funcionarioId.HasValue && mes.HasValue && ano.HasValue)
             {
-                Id = e.Id,
-                RegistroPontoId = e.RegistroPontoId,
-                Data = e.Data,
-                HoraEntrada = e.HoraEntrada,
-                HoraAlmocoInicio = e.HoraAlmocoInicio,
-                HoraAlmocoFim = e.HoraAlmocoFim,
-                HoraSaida = e.HoraSaida,
-                Presenca = e.Presenca,
-                Observacao = e.Observacao,
-                StartDate = e.StartDate,
-                ChangeDate = e.ChangeDate,
-                Excluded = e.Excluded
-            });
+                var registrosMes = (await _repository.GetFilteredAsync(funcionarioId, mes, ano)).ToList();
+                var diasMes = DateTime.DaysInMonth(ano.Value, mes.Value);
+
+                for (var dia = 1; dia <= diasMes; dia++)
+                {
+                    var data = new DateTime(ano.Value, mes.Value, dia, 0, 0, 0, DateTimeKind.Utc);
+                    var existe = registrosMes.Any(r => r.Data.Date == data.Date);
+                    if (existe)
+                        continue;
+
+                    var novo = new RegistroPonto
+                    {
+                        RegistroPontoId = funcionarioId.Value,
+                        FuncionarioId = funcionarioId.Value,
+                        Data = data,
+                        HoraEntrada = string.Empty,
+                        HoraAlmocoInicio = string.Empty,
+                        HoraAlmocoFim = string.Empty,
+                        HoraSaida = string.Empty,
+                        Presenca = false,
+                        Observacao = string.Empty,
+                        CreatedByUserId = 0,
+                        StartDate = DateTime.UtcNow,
+                        Excluded = false
+                    };
+
+                    await _repository.AddAsync(novo);
+                }
+
+                await _repository.SaveChangesAsync();
+            }
+
+            var list = await _repository.GetFilteredAsync(funcionarioId, mes, ano);
+            return list.Select(ToReadDto);
         }
 
         public async Task<RegistroPontoReadDto?> GetByIdAsync(int id)
@@ -42,40 +97,25 @@ namespace Portal.Services
             var entity = await _repository.GetByIdAsync(id);
             if (entity == null) return null;
 
-            return new RegistroPontoReadDto
-            {
-                Id = entity.Id,
-                RegistroPontoId = entity.RegistroPontoId,
-                Data = entity.Data,
-                HoraEntrada = entity.HoraEntrada,
-                HoraAlmocoInicio = entity.HoraAlmocoInicio,
-                HoraAlmocoFim = entity.HoraAlmocoFim,
-                HoraSaida = entity.HoraSaida,
-                Presenca = entity.Presenca,
-                Observacao = entity.Observacao,
-                StartDate = entity.StartDate,
-                ChangeDate = entity.ChangeDate,
-                Excluded = entity.Excluded
-            };
+            return ToReadDto(entity);
         }
 
         public async Task<RegistroPontoReadDto> CreateAsync(RegistroPontoCreateDto dto)
         {
-            if (dto.RegistroPontoId == null) throw new Exception("RegistroPontoId é obrigatório!");
-            if (dto.Data == null) throw new Exception("Data é obrigatório!");
-            if (dto.Presenca == null) throw new Exception("Presenca é obrigatório!");
+            if (dto.FuncionarioId <= 0) throw new Exception("FuncionarioId é obrigatório!");
 
             var entity = new RegistroPonto();
 
             // atribuição de campos
-            entity.RegistroPontoId = dto.RegistroPontoId;
+            entity.RegistroPontoId = dto.FuncionarioId;
+            entity.FuncionarioId = dto.FuncionarioId;
             entity.Data = dto.Data;
-            entity.HoraEntrada = dto.HoraEntrada;
-            entity.HoraAlmocoInicio = dto.HoraAlmocoInicio;
-            entity.HoraAlmocoFim = dto.HoraAlmocoFim;
-            entity.HoraSaida = dto.HoraSaida;
+            entity.HoraEntrada = dto.Entrada ?? string.Empty;
+            entity.HoraAlmocoInicio = dto.AlmocInicio ?? string.Empty;
+            entity.HoraAlmocoFim = dto.AlmocFim ?? string.Empty;
+            entity.HoraSaida = dto.Saida ?? string.Empty;
             entity.Presenca = dto.Presenca;
-            entity.Observacao = dto.Observacao;
+            entity.Observacao = dto.Observacao ?? string.Empty;
 
             entity.StartDate = DateTime.UtcNow;
             entity.Excluded = false;
@@ -91,14 +131,17 @@ namespace Portal.Services
             var entity = await _repository.GetByIdAsync(id);
             if (entity == null) return false;
 
-            if (dto.RegistroPontoId != null)
-                entity.RegistroPontoId = dto.RegistroPontoId ?? entity.RegistroPontoId;
+            if (dto.FuncionarioId != null)
+            {
+                entity.RegistroPontoId = dto.FuncionarioId ?? entity.RegistroPontoId;
+                entity.FuncionarioId = dto.FuncionarioId ?? entity.FuncionarioId;
+            }
             if (dto.Data != null)
                 entity.Data = dto.Data ?? entity.Data;
-            entity.HoraEntrada = dto.HoraEntrada ?? entity.HoraEntrada;
-            entity.HoraAlmocoInicio = dto.HoraAlmocoInicio ?? entity.HoraAlmocoInicio;
-            entity.HoraAlmocoFim = dto.HoraAlmocoFim ?? entity.HoraAlmocoFim;
-            entity.HoraSaida = dto.HoraSaida ?? entity.HoraSaida;
+            entity.HoraEntrada = dto.Entrada ?? entity.HoraEntrada;
+            entity.HoraAlmocoInicio = dto.AlmocInicio ?? entity.HoraAlmocoInicio;
+            entity.HoraAlmocoFim = dto.AlmocFim ?? entity.HoraAlmocoFim;
+            entity.HoraSaida = dto.Saida ?? entity.HoraSaida;
             if (dto.Presenca != null)
                 entity.Presenca = dto.Presenca ?? entity.Presenca;
             entity.Observacao = dto.Observacao ?? entity.Observacao;

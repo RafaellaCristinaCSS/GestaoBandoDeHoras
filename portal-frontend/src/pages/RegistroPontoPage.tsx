@@ -61,7 +61,7 @@ export function RegistroPontoPage() {
     return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
   }
 
-  const handleCellChange = (registroId: number, field: string, value: string) => {
+  const handleCellChange = (registroId: number, field: string, value: string | boolean) => {
     updateMutation.mutate({ id: registroId, field, value })
   }
 
@@ -231,7 +231,7 @@ export function RegistroPontoPage() {
                           type="checkbox"
                           checked={registro.presenca}
                           onChange={(e) => {
-                            handleCellChange(registro.id, 'presenca', String(e.target.checked))
+                            handleCellChange(registro.id, 'presenca', e.target.checked)
                           }}
                           className="rounded border-slate-300"
                         />

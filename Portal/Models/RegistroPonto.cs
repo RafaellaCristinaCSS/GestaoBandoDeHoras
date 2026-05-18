@@ -9,6 +9,7 @@ namespace Portal.Models
         [Key]
         public int Id { get; set; }
         public int RegistroPontoId { get; set; }
+        public int? FuncionarioId { get; set; }
         public DateTime Data { get; set; }
         public string HoraEntrada { get; set; }
         public string HoraAlmocoInicio { get; set; }
