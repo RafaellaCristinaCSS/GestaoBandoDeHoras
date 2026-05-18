@@ -270,64 +270,208 @@ export function RelatoriosPage() {
     try {
       setIsExporting(true)
       const monthName = new Date(0, selectedMonth - 1).toLocaleString('pt-BR', { month: 'long' })
-
-      const faltasSheet = absences.map((item) => ({
-        Funcionário: item.funcionario,
-        Data: item.data,
-        Observação: item.observacao,
-      }))
-
-      const atrasosSheet = delays.map((item) => ({
-        Funcionário: item.funcionario,
-        Data: item.data,
-        'Entrada Planejada': item.entradaPlanejada,
-        'Entrada Real': item.entradaReal,
-        'Saída Planejada': item.saidaPlanejada,
-        'Saída Real': item.saidaReal,
-        'Horas planejadas': item.horasPlanejadasDia,
-        'Horas cumpridas': item.horasCumpridasDia,
-        Saldo: item.saldoHorasDia,
-        Observação: item.observacao,
-      }))
-
-      const mensalSheet = monthly.map((item) => ({
-        Funcionário: item.funcionario.nome,
-        'Horas planejadas': item.horasPlanejadas,
-        'Horas cumpridas': item.horasCumpridas,
-        Saldo: item.saldoHoras,
-        Faltas: item.faltas.length,
-        Atrasos: item.atrasos.length,
-      }))
-
       const workbook = XLSX.utils.book_new()
 
-      const faltasWorksheet = XLSX.utils.json_to_sheet(faltasSheet)
-      faltasWorksheet['!cols'] = [{ wch: 24 }, { wch: 14 }, { wch: 40 }]
-      XLSX.utils.book_append_sheet(workbook, faltasWorksheet, 'Faltas')
-
-      const atrasosWorksheet = XLSX.utils.json_to_sheet(atrasosSheet)
-      atrasosWorksheet['!cols'] = [
+      const worksheet = XLSX.utils.aoa_to_sheet([])
+      const merges: Array<{ s: { r: number; c: number }; e: { r: number; c: number } }> = []
+      worksheet['!merges'] = merges
+      worksheet['!cols'] = [
         { wch: 24 },
         { wch: 14 },
-        { wch: 16 },
+        { wch: 18 },
         { wch: 14 },
-        { wch: 16 },
+        { wch: 18 },
         { wch: 14 },
-        { wch: 12 },
-        { wch: 40 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 42 },
       ]
-      XLSX.utils.book_append_sheet(workbook, atrasosWorksheet, 'Atrasos')
 
-      const mensalWorksheet = XLSX.utils.json_to_sheet(mensalSheet)
-      mensalWorksheet['!cols'] = [
-        { wch: 24 },
-        { wch: 16 },
-        { wch: 16 },
-        { wch: 12 },
-        { wch: 10 },
-        { wch: 10 },
-      ]
-      XLSX.utils.book_append_sheet(workbook, mensalWorksheet, 'Mensal')
+      const titleStyle: any = {
+        font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 16 },
+        fill: { patternType: 'solid', fgColor: { rgb: '1D4ED8' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+      }
+
+      const subtitleStyle: any = {
+        font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 12 },
+        fill: { patternType: 'solid', fgColor: { rgb: '0F766E' } },
+        alignment: { horizontal: 'left', vertical: 'center' },
+      }
+
+      const headerStyle: any = {
+        font: { bold: true, color: { rgb: 'FFFFFF' } },
+        fill: { patternType: 'solid', fgColor: { rgb: '334155' } },
+        alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+        border: {
+          top: { style: 'thin', color: { rgb: 'CBD5E1' } },
+          bottom: { style: 'thin', color: { rgb: 'CBD5E1' } },
+          left: { style: 'thin', color: { rgb: 'CBD5E1' } },
+          right: { style: 'thin', color: { rgb: 'CBD5E1' } },
+        },
+      }
+
+      const cellStyle: any = {
+        alignment: { vertical: 'middle' },
+        border: {
+          top: { style: 'thin', color: { rgb: 'E2E8F0' } },
+          bottom: { style: 'thin', color: { rgb: 'E2E8F0' } },
+          left: { style: 'thin', color: { rgb: 'E2E8F0' } },
+          right: { style: 'thin', color: { rgb: 'E2E8F0' } },
+        },
+      }
+
+      const positiveStyle: any = {
+        ...cellStyle,
+        font: { bold: true, color: { rgb: '166534' } },
+        fill: { patternType: 'solid', fgColor: { rgb: 'DCFCE7' } },
+      }
+
+      const negativeStyle: any = {
+        ...cellStyle,
+        font: { bold: true, color: { rgb: '991B1B' } },
+        fill: { patternType: 'solid', fgColor: { rgb: 'FEE2E2' } },
+      }
+
+      const neutralStyle: any = {
+        ...cellStyle,
+        font: { bold: true, color: { rgb: '334155' } },
+        fill: { patternType: 'solid', fgColor: { rgb: 'F1F5F9' } },
+      }
+
+      let rowIndex = 0
+      const setRowStyle = (row: number, columnCount: number, style: any) => {
+        for (let column = 0; column < columnCount; column += 1) {
+          const address = XLSX.utils.encode_cell({ r: row, c: column })
+          if (worksheet[address]) {
+            worksheet[address].s = style
+          }
+        }
+      }
+
+      const appendRow = (values: Array<string | number>, style?: any) => {
+        XLSX.utils.sheet_add_aoa(worksheet, [values], { origin: { r: rowIndex, c: 0 } })
+        if (style) {
+          setRowStyle(rowIndex, values.length, style)
+        }
+        rowIndex += 1
+      }
+
+      const appendMergedTitle = (text: string, style: any) => {
+        appendRow([text], style)
+        merges.push({ s: { r: rowIndex - 1, c: 0 }, e: { r: rowIndex - 1, c: 9 } })
+      }
+
+      const appendSection = (
+        title: string,
+        headers: string[],
+        rows: Array<Array<string | number>>,
+        options?: { saldoColumnIndex?: number }
+      ) => {
+        appendMergedTitle(title, subtitleStyle)
+        appendRow(headers, headerStyle)
+        rows.forEach((values) => {
+          appendRow(values)
+          if (options?.saldoColumnIndex != null) {
+            const saldoValue = Number(values[options.saldoColumnIndex])
+            const saldoStyle = saldoValue > 0 ? positiveStyle : saldoValue < 0 ? negativeStyle : neutralStyle
+            const address = XLSX.utils.encode_cell({ r: rowIndex - 1, c: options.saldoColumnIndex })
+            if (worksheet[address]) {
+              worksheet[address].s = saldoStyle
+            }
+          }
+        })
+        rowIndex += 1
+      }
+
+      appendMergedTitle(`Relatório de Horas - ${monthName} / ${selectedYear}`, titleStyle)
+      appendMergedTitle(`Gerado em ${new Date().toLocaleString('pt-BR')}`, cellStyle)
+      appendRow([])
+
+      appendSection(
+        'Faltas',
+        ['Funcionário', 'Dia', 'Observação'],
+        absences.map((item) => [
+          item.funcionario,
+          parseLocalDate(item.data).toLocaleDateString('pt-BR'),
+          item.observacao,
+        ])
+      )
+
+      appendSection(
+        'Atrasos',
+        [
+          'Funcionário',
+          'Dia',
+          'Entrada planejada',
+          'Entrada real',
+          'Saída planejada',
+          'Saída real',
+          'Horas planejadas',
+          'Horas cumpridas',
+          'Saldo',
+          'Observação',
+        ],
+        delays.map((item) => [
+          item.funcionario,
+          parseLocalDate(item.data).toLocaleDateString('pt-BR'),
+          item.entradaPlanejada,
+          item.entradaReal,
+          item.saidaPlanejada,
+          item.saidaReal,
+          item.horasPlanejadasDia,
+          item.horasCumpridasDia,
+          item.saldoHorasDia,
+          item.observacao,
+        ]),
+        { saldoColumnIndex: 8 }
+      )
+
+      appendSection(
+        'Horas gerais',
+        ['Funcionário', 'Horas planejadas', 'Horas cumpridas', 'Saldo', 'Faltas', 'Atrasos'],
+        monthly.map((item) => [
+          item.funcionario.nome,
+          item.horasPlanejadas,
+          item.horasCumpridas,
+          item.saldoHoras,
+          item.faltas.length,
+          item.atrasos.length,
+        ]),
+        { saldoColumnIndex: 3 }
+      )
+
+      appendSection(
+        'Horas extras',
+        [
+          'Funcionário',
+          'Dia',
+          'Entrada planejada',
+          'Entrada real',
+          'Saída planejada',
+          'Saída real',
+          'Horas planejadas',
+          'Horas cumpridas',
+          'Horas extras',
+          'Observação',
+        ],
+        extras.map((item) => [
+          item.funcionario,
+          parseLocalDate(item.data).toLocaleDateString('pt-BR'),
+          item.entradaPlanejada,
+          item.entradaReal,
+          item.saidaPlanejada,
+          item.saidaReal,
+          item.horasPlanejadasDia,
+          item.horasCumpridasDia,
+          item.saldoHorasDia,
+          item.observacao,
+        ]),
+        { saldoColumnIndex: 8 }
+      )
+
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Relatorio')
 
       const fileName = `Relatorio_Geral_${monthName}_${selectedYear}.ods`
       XLSX.writeFile(workbook, fileName, { bookType: 'ods' })
