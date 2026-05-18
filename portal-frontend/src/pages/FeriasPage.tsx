@@ -29,33 +29,6 @@ export function FeriasPage() {
     queryFn: funcionarioService.getAll,
   })
 
-  const createMutation = useMutation({
-    mutationFn: (data: Ferias) => feriasService.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ferias'] })
-      setIsModalOpen(false)
-      setEditingId(null)
-      setToast({ message: 'Férias criada com sucesso!', type: 'success' })
-    },
-    onError: () => {
-      setToast({ message: 'Erro ao criar férias', type: 'error' })
-    },
-  })
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<Ferias> }) =>
-      feriasService.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ferias'] })
-      setIsModalOpen(false)
-      setEditingId(null)
-      setToast({ message: 'Férias atualizada com sucesso!', type: 'success' })
-    },
-    onError: () => {
-      setToast({ message: 'Erro ao atualizar férias', type: 'error' })
-    },
-  })
-
   const deleteMutation = useMutation({
     mutationFn: (id: number) => feriasService.delete(id),
     onSuccess: () => {
@@ -71,14 +44,6 @@ export function FeriasPage() {
   const handleEdit = (feria: Ferias) => {
     setEditingId(feria.id)
     setIsModalOpen(true)
-  }
-
-  const handleSubmit = (data: any) => {
-    if (editingId) {
-      updateMutation.mutate({ id: editingId, data })
-    } else {
-      createMutation.mutate(data)
-    }
   }
 
   // const editingFeria = editingId ? ferias?.find((f) => f.id === editingId) : undefined

@@ -110,7 +110,11 @@ namespace Portal.Services
             await _repository.AddAsync(entity);
             await _repository.SaveChangesAsync();
 
-            return await GetByIdAsync(entity.Id)!;
+            var created = await GetByIdAsync(entity.Id);
+            if (created == null)
+                throw new Exception("Falha ao recuperar a escala criada.");
+
+            return created;
         }
 
         public async Task<bool> UpdateAsync(int id, EscalaUpdateDto dto)

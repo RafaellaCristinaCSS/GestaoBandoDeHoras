@@ -103,10 +103,6 @@ export function RegistroPontoPage() {
     },
   })
 
-  const getDaysInMonth = (year: number, month: number) => {
-    return new Date(year, month, 0).getDate()
-  }
-
   // const formatDate = (year: number, month: number, day: number) => {
   //   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
   // }
@@ -120,7 +116,6 @@ export function RegistroPontoPage() {
     funcionarios?.map((f) => ({ value: f.id, label: f.nome })) ?? []
   const selectedFuncionarioOption =
     funcionarioOptions.find((o) => o.value === selectedFuncionarioId) ?? null
-  const daysInMonth = getDaysInMonth(selectedYear, selectedMonth)
   // const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1)
 
   if (isLoadingFunc) return <Loading />
