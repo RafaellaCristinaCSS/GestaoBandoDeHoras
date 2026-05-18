@@ -22,7 +22,9 @@ namespace Portal.Repositories
         public FuncionarioRepository(AppDbContext context) => _context = context;
 
         public async Task<IEnumerable<Funcionario>> GetAllAsync()
-            => await _context.Set<Funcionario>().ToListAsync();
+            => await _context.Set<Funcionario>()
+                .OrderBy(x => x.Nome)
+                .ToListAsync();
 
 public async Task<Funcionario?> GetByIdAsync(int id)
     => await _context.Set<Funcionario>().FirstOrDefaultAsync(x => x.Id == id);
