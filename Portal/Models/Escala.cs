@@ -15,6 +15,7 @@ namespace Portal.Models
         public decimal HorasPrevistas { get; set; }
         public bool Folga { get; set; }
 
+        public int? FuncionarioId { get; set; }
         public Funcionario? Funcionario { get; set; }
 
         public int CreatedByUserId { get; set; }

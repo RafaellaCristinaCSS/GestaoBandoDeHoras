@@ -12,6 +12,9 @@ namespace Portal.Services
     {
         private readonly IEscalaRepository _repository;
 
+        private static int ParseDiaSemana(string value)
+            => int.TryParse(value, out var diaSemana) ? diaSemana : 0;
+
         public EscalaService(IEscalaRepository repository)
         {
             _repository = repository;
@@ -23,12 +26,32 @@ namespace Portal.Services
             return list.Select(e => new EscalaReadDto
             {
                 Id = e.Id,
-                EscalaId = e.EscalaId,
-                DiaSemana = e.DiaSemana,
+                FuncionarioId = e.FuncionarioId ?? e.EscalaId,
+                DiaSemana = ParseDiaSemana(e.DiaSemana),
                 HoraInicio = e.HoraInicio,
                 HoraFim = e.HoraFim,
                 HorasPrevistas = e.HorasPrevistas,
                 Folga = e.Folga,
+                FuncionarioName = e.Funcionario?.Nome,
+                StartDate = e.StartDate,
+                ChangeDate = e.ChangeDate,
+                Excluded = e.Excluded
+            });
+        }
+
+        public async Task<IEnumerable<EscalaReadDto>> GetByFuncionarioAsync(int funcionarioId)
+        {
+            var list = await _repository.GetByFuncionarioIdAsync(funcionarioId);
+            return list.Select(e => new EscalaReadDto
+            {
+                Id = e.Id,
+                FuncionarioId = e.FuncionarioId ?? e.EscalaId,
+                DiaSemana = ParseDiaSemana(e.DiaSemana),
+                HoraInicio = e.HoraInicio,
+                HoraFim = e.HoraFim,
+                HorasPrevistas = e.HorasPrevistas,
+                Folga = e.Folga,
+                FuncionarioName = e.Funcionario?.Nome,
                 StartDate = e.StartDate,
                 ChangeDate = e.ChangeDate,
                 Excluded = e.Excluded
@@ -43,12 +66,13 @@ namespace Portal.Services
             return new EscalaReadDto
             {
                 Id = entity.Id,
-                EscalaId = entity.EscalaId,
-                DiaSemana = entity.DiaSemana,
+                FuncionarioId = entity.FuncionarioId ?? entity.EscalaId,
+                DiaSemana = ParseDiaSemana(entity.DiaSemana),
                 HoraInicio = entity.HoraInicio,
                 HoraFim = entity.HoraFim,
                 HorasPrevistas = entity.HorasPrevistas,
                 Folga = entity.Folga,
+                FuncionarioName = entity.Funcionario?.Nome,
                 StartDate = entity.StartDate,
                 ChangeDate = entity.ChangeDate,
                 Excluded = entity.Excluded
@@ -57,18 +81,16 @@ namespace Portal.Services
 
         public async Task<EscalaReadDto> CreateAsync(EscalaCreateDto dto)
         {
-            if (dto.EscalaId == null) throw new Exception("EscalaId é obrigatório!");
-            if (dto.DiaSemana == null) throw new Exception("DiaSemana é obrigatório!");
+            if (dto.FuncionarioId <= 0) throw new Exception("FuncionarioId é obrigatório!");
             if (dto.HoraInicio == null) throw new Exception("HoraInicio é obrigatório!");
             if (dto.HoraFim == null) throw new Exception("HoraFim é obrigatório!");
-            if (dto.HorasPrevistas == null) throw new Exception("HorasPrevistas é obrigatório!");
-            if (dto.Folga == null) throw new Exception("Folga é obrigatório!");
 
             var entity = new Escala();
 
             // atribuição de campos
-            entity.EscalaId = dto.EscalaId;
-            entity.DiaSemana = dto.DiaSemana;
+            entity.EscalaId = dto.FuncionarioId;
+            entity.FuncionarioId = dto.FuncionarioId;
+            entity.DiaSemana = dto.DiaSemana.ToString();
             entity.HoraInicio = dto.HoraInicio;
             entity.HoraFim = dto.HoraFim;
             entity.HorasPrevistas = dto.HorasPrevistas;
@@ -88,9 +110,13 @@ namespace Portal.Services
             var entity = await _repository.GetByIdAsync(id);
             if (entity == null) return false;
 
-            if (dto.EscalaId != null)
-                entity.EscalaId = dto.EscalaId ?? entity.EscalaId;
-            entity.DiaSemana = dto.DiaSemana ?? entity.DiaSemana;
+            if (dto.FuncionarioId != null)
+            {
+                entity.EscalaId = dto.FuncionarioId ?? entity.EscalaId;
+                entity.FuncionarioId = dto.FuncionarioId ?? entity.FuncionarioId;
+            }
+            if (dto.DiaSemana != null)
+                entity.DiaSemana = dto.DiaSemana.Value.ToString();
             entity.HoraInicio = dto.HoraInicio ?? entity.HoraInicio;
             entity.HoraFim = dto.HoraFim ?? entity.HoraFim;
             if (dto.HorasPrevistas != null)

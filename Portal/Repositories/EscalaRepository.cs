@@ -10,6 +10,7 @@ namespace Portal.Repositories
     {
         Task<Escala?> GetByIdAsync(int id);
         Task<IEnumerable<Escala>> GetAllAsync();
+        Task<IEnumerable<Escala>> GetByFuncionarioIdAsync(int funcionarioId);
         Task AddAsync(Escala entity);
         Task UpdateAsync(Escala entity);
         Task DeleteAsync(Escala entity);
@@ -23,6 +24,11 @@ namespace Portal.Repositories
 
         public async Task<IEnumerable<Escala>> GetAllAsync()
             => await _context.Set<Escala>().Include(x => x.Funcionario).ToListAsync();
+
+        public async Task<IEnumerable<Escala>> GetByFuncionarioIdAsync(int funcionarioId)
+            => await _context.Set<Escala>().Include(x => x.Funcionario)
+                .Where(x => (x.FuncionarioId == funcionarioId || x.EscalaId == funcionarioId) && !x.Excluded)
+                .ToListAsync();
 
 public async Task<Escala?> GetByIdAsync(int id)
     => await _context.Set<Escala>().Include(x => x.Funcionario).FirstOrDefaultAsync(x => x.Id == id);

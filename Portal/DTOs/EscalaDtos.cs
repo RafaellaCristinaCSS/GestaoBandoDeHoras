@@ -4,8 +4,8 @@ namespace Portal.DTOs
 {
     public class EscalaCreateDto
     {
-        public int EscalaId { get; set; }
-        public string DiaSemana { get; set; }
+        public int FuncionarioId { get; set; }
+        public int DiaSemana { get; set; }
         public string HoraInicio { get; set; }
         public string HoraFim { get; set; }
         public decimal HorasPrevistas { get; set; }
@@ -17,8 +17,8 @@ namespace Portal.DTOs
     public class EscalaUpdateDto
     {
         public int Id { get; set; }
-        public int? EscalaId { get; set; }
-        public string? DiaSemana { get; set; }
+        public int? FuncionarioId { get; set; }
+        public int? DiaSemana { get; set; }
         public string? HoraInicio { get; set; }
         public string? HoraFim { get; set; }
         public decimal? HorasPrevistas { get; set; }
@@ -30,8 +30,8 @@ namespace Portal.DTOs
     public class EscalaReadDto
     {
         public int Id { get; set; }
-        public int EscalaId { get; set; }
-        public string DiaSemana { get; set; }
+        public int FuncionarioId { get; set; }
+        public int DiaSemana { get; set; }
         public string HoraInicio { get; set; }
         public string HoraFim { get; set; }
         public decimal HorasPrevistas { get; set; }

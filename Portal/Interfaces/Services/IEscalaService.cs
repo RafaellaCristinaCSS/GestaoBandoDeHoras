@@ -8,6 +8,7 @@ namespace Portal.Services
     {
         Task<IEnumerable<EscalaReadDto>> GetAllAsync();
         Task<EscalaReadDto?> GetByIdAsync(int id);
+        Task<IEnumerable<EscalaReadDto>> GetByFuncionarioAsync(int funcionarioId);
         Task<EscalaReadDto> CreateAsync(EscalaCreateDto dto);
         Task<bool> UpdateAsync(int id, EscalaUpdateDto dto);
         Task<bool> DeleteAsync(int id);

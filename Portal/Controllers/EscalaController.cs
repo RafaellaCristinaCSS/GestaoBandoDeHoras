@@ -25,6 +25,13 @@ namespace Portal.Controllers
             return Ok(result);
         }
 
+        [HttpGet("funcionario/{funcionarioId}")]
+        public async Task<IActionResult> GetByFuncionario(int funcionarioId)
+        {
+            var result = await _service.GetByFuncionarioAsync(funcionarioId);
+            return Ok(result);
+        }
+
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
