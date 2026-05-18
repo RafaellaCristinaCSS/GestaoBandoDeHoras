@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import { Users, Clock, Calendar, FileText } from 'lucide-react'
 
 export function Sidebar() {
@@ -38,14 +38,20 @@ export function Sidebar() {
           {menuItems.map((item) => {
             const Icon = item.icon
             return (
-              <Link
+              <NavLink
                 key={item.href}
                 to={item.href}
-                className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors"
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                    isActive
+                      ? 'bg-slate-700 text-white'
+                      : 'text-slate-200 hover:bg-slate-800 hover:text-white'
+                  }`
+                }
               >
                 <Icon size={20} />
                 <span>{item.label}</span>
-              </Link>
+              </NavLink>
             )
           })}
         </nav>

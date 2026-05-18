@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Portal.Data;
@@ -11,9 +12,11 @@ using Portal.Data;
 namespace Portal.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260518184339_AddFeriadoToRegistroPonto")]
+    partial class AddFeriadoToRegistroPonto
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -47,46 +50,27 @@ namespace Portal.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
 
-                    b.Property<bool>("Ativa")
-                        .HasColumnType("boolean");
-
-                    b.Property<decimal>("CargaHorariaSemanal")
-                        .HasColumnType("numeric");
-
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTime?>("ChangeDate")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Descricao")
-                        .HasColumnType("text");
+                    b.Property<int>("CreatedByUserId")
+                        .HasColumnType("integer");
 
-                    b.Property<string>("Nome")
+                    b.Property<string>("DiaSemana")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<int>("TipoEscala")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Escala");
-                });
-
-            modelBuilder.Entity("Portal.Models.EscalaDetalhe", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("DiaSemana")
-                        .HasColumnType("integer");
 
                     b.Property<int>("EscalaId")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("Excluded")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("Folga")
                         .HasColumnType("boolean");
+
+                    b.Property<int?>("FuncionarioId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("HoraAlmocoFim")
                         .HasColumnType("text");
@@ -105,11 +89,17 @@ namespace Portal.Migrations
                     b.Property<decimal>("HorasPrevistas")
                         .HasColumnType("numeric");
 
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("UpdatedByUserId")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("EscalaId");
+                    b.HasIndex("FuncionarioId");
 
-                    b.ToTable("EscalaDetalhe");
+                    b.ToTable("Escala");
                 });
 
             modelBuilder.Entity("Portal.Models.Ferias", b =>
@@ -203,44 +193,6 @@ namespace Portal.Migrations
                     b.ToTable("Funcionario");
                 });
 
-            modelBuilder.Entity("Portal.Models.FuncionarioEscala", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("CreatedByUserId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("DataFim")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("DataInicio")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("EscalaId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("FuncionarioId")
-                        .HasColumnType("integer");
-
-                    b.Property<bool?>("TrabalhaDiaPar")
-                        .HasColumnType("boolean");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EscalaId");
-
-                    b.HasIndex("FuncionarioId");
-
-                    b.ToTable("FuncionarioEscala");
-                });
-
             modelBuilder.Entity("Portal.Models.RegistroPonto", b =>
                 {
                     b.Property<int>("Id")
@@ -258,17 +210,11 @@ namespace Portal.Migrations
                     b.Property<DateTime>("Data")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int?>("EscalaId")
-                        .HasColumnType("integer");
-
                     b.Property<bool>("Excluded")
                         .HasColumnType("boolean");
 
                     b.Property<bool>("Feriado")
                         .HasColumnType("boolean");
-
-                    b.Property<int?>("FuncionarioEscalaId")
-                        .HasColumnType("integer");
 
                     b.Property<int?>("FuncionarioId")
                         .HasColumnType("integer");
@@ -307,24 +253,18 @@ namespace Portal.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("EscalaId");
-
-                    b.HasIndex("FuncionarioEscalaId");
-
                     b.HasIndex("FuncionarioId");
 
                     b.ToTable("RegistroPonto");
                 });
 
-            modelBuilder.Entity("Portal.Models.EscalaDetalhe", b =>
+            modelBuilder.Entity("Portal.Models.Escala", b =>
                 {
-                    b.HasOne("Portal.Models.Escala", "Escala")
-                        .WithMany("Detalhes")
-                        .HasForeignKey("EscalaId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                    b.HasOne("Portal.Models.Funcionario", "Funcionario")
+                        .WithMany()
+                        .HasForeignKey("FuncionarioId");
 
-                    b.Navigation("Escala");
+                    b.Navigation("Funcionario");
                 });
 
             modelBuilder.Entity("Portal.Models.Ferias", b =>
@@ -336,53 +276,13 @@ namespace Portal.Migrations
                     b.Navigation("Funcionario");
                 });
 
-            modelBuilder.Entity("Portal.Models.FuncionarioEscala", b =>
-                {
-                    b.HasOne("Portal.Models.Escala", "Escala")
-                        .WithMany("FuncionarioEscalas")
-                        .HasForeignKey("EscalaId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Portal.Models.Funcionario", "Funcionario")
-                        .WithMany()
-                        .HasForeignKey("FuncionarioId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Escala");
-
-                    b.Navigation("Funcionario");
-                });
-
             modelBuilder.Entity("Portal.Models.RegistroPonto", b =>
                 {
-                    b.HasOne("Portal.Models.Escala", "Escala")
-                        .WithMany()
-                        .HasForeignKey("EscalaId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Portal.Models.FuncionarioEscala", "FuncionarioEscalaVinculo")
-                        .WithMany()
-                        .HasForeignKey("FuncionarioEscalaId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("Portal.Models.Funcionario", "Funcionario")
                         .WithMany()
                         .HasForeignKey("FuncionarioId");
 
-                    b.Navigation("Escala");
-
                     b.Navigation("Funcionario");
-
-                    b.Navigation("FuncionarioEscalaVinculo");
-                });
-
-            modelBuilder.Entity("Portal.Models.Escala", b =>
-                {
-                    b.Navigation("Detalhes");
-
-                    b.Navigation("FuncionarioEscalas");
                 });
 #pragma warning restore 612, 618
         }

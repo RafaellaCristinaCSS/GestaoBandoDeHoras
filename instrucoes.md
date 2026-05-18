@@ -1,434 +1,338 @@
-# Sistema de Gestão de Funcionários - Frontend
+# Refatoração do cálculo de horas e vínculo histórico da escala no registro de ponto
 
 ## Objetivo
 
-Criar um frontend simples, rápido e intuitivo para controle de funcionários, presença, horários trabalhados e férias. Front, React, TypeScript, Vite, Tailwind, shadcn/ui (preciso conseguir hospedar o front no github page)
-
-O sistema será utilizado apenas pelo gestor da empresa para:
-
-- cadastrar funcionários
-- lançar horas trabalhadas
-- controlar faltas e atrasos
-- visualizar resumo mensal
-- exportar relatório em Excel
-
-O sistema NÃO precisa:
-- autenticação complexa
-- múltiplos perfis
-- permissões avançadas
-- dashboard complexo
-- gráficos
-- notificações
-- responsividade perfeita mobile
-
-O foco deve ser:
-- simplicidade
-- velocidade
-- facilidade de uso
-- poucos cliques
+Garantir que:
+- todas as horas sejam calculadas a partir da escala válida do funcionário
+- cada registro de ponto mantenha referência da escala utilizada naquele momento
+- mudanças futuras de escala NÃO alterem registros antigos
+- o sistema preserve histórico corretamente
 
 ---
 
-# Stack desejada
+# Regra principal
 
-Frontend:
-- React
-- TypeScript
-- Vite
-
-Bibliotecas:
-- React Router DOM
-- Axios
-- React Hook Form
-- Zod
-- TanStack Query
-- TailwindCSS
-- shadcn/ui
-- lucide-react
-
----
-
-# Estrutura visual
-
-Criar layout simples com:
-
-## Sidebar lateral
-
-Itens:
-- Funcionários
-- Registro de Ponto
-- Férias
-- Relatórios
-
-## Header simples
-
-Mostrar:
-- nome do sistema
-- data atual
-
----
-
-# Padrão visual
-
-Visual limpo e administrativo.
-
-Utilizar:
-- cards simples
-- tabelas organizadas
-- poucos detalhes visuais
-- foco em produtividade
-
-Evitar:
-- animações exageradas
-- excesso de cores
-- telas muito carregadas
-
----
-
-# TELAS
-
----
-
-# 1. Tela de Funcionários
-
-## Objetivo
-
-Cadastrar e gerenciar funcionários.
-
----
-
-## Funcionalidades
-
-### Listagem
-
-Tabela com:
-- nome
-- cargo
-- carga horária semanal
-- ativo
-
-Ações:
-- editar
-- remover
-
----
-
-## Cadastro/Edição
-
-Campos:
-- nome
-- cargo
-- cargaHorariaSemanal
-- ativo
-
-Validações:
-- nome obrigatório
-- cargo obrigatório
-- cargaHorariaSemanal obrigatória
-
----
-
-# 2. Tela de Escala
-
-## Objetivo
-
-Definir dias e horários de trabalho do funcionário.
-
-Cada funcionário possui:
-- dias trabalhados
-- horário padrão
-
-Exemplo:
-- segunda a quinta: 08:00 às 18:00
-- sexta: 08:00 às 17:00
-
----
-
-## Funcionalidades
-
-### Selecionar funcionário
-
-Ao selecionar:
-- carregar escala cadastrada
-
----
-
-## Cadastro da escala
-
-Campos:
-- diaSemana
-- horaInicio
-- horaFim
-- horasPrevistas
-- folga
-
-Permitir múltiplos registros por funcionário.
-
-Exemplo:
-| Dia | Entrada | Saída | Folga |
-|------|------|------|------|
-| Segunda | 08:00 | 18:00 | Não |
-| Sexta | 08:00 | 17:00 | Não |
-| Domingo | - | - | Sim |
-
----
-
-# 3. Tela de Registro de Ponto
-
-## Objetivo
-
-Lançar manualmente horas trabalhadas.
-
-Essa é a tela mais importante do sistema.
-
----
-
-# Layout
-
-## Filtros superiores
-
-Campos:
-- funcionário
-- mês
-- ano
-
-Botão:
-- carregar registros
-
----
-
-# Tabela mensal
-
-Mostrar TODOS os dias do mês.
-
-Colunas:
-- data
-- dia da semana
-- entrada
-- almoço início
-- almoço fim
-- saída
-- presença
-- observação
-- status
-
----
-
-# Regras
-
-## Status automático
-
-Sistema deve calcular:
-- Presente
-- Falta
-- Folga
-- Atrasado
-
-Comparar com escala cadastrada.
-
----
-
-# Funcionalidades
-
-## Edição inline
-
-Permitir editar diretamente na tabela:
-- horários
-- presença
-- observação
-
----
-
-# Cálculos automáticos
-
-Ao salvar:
-- calcular horas trabalhadas
-- calcular atraso
-- calcular horas extras
-
----
-
-# UX importante
-
-Ao trocar funcionário:
-- carregar automaticamente mês atual
-
-Ao mudar mês:
-- recarregar tabela
-
----
-
-# 4. Tela de Férias
-
-## Objetivo
-
-Cadastrar períodos de férias.
-
----
-
-## Listagem
-
-Mostrar:
-- funcionário
-- data início
-- data fim
-
----
-
-## Cadastro
-
-Campos:
-- funcionário
-- dataInicio
-- dataFim
-- observação
-
----
-
-# 5. Tela de Relatórios
-
-## Objetivo
-
-Gerar resumo mensal.
-
----
-
-# Filtros
-
-Campos:
-- funcionário
-- mês
-- ano
-
-Botões:
-- gerar relatório
-- exportar excel
-
----
-
-# Resumo exibido
-
-Mostrar:
-- total de horas trabalhadas
-- faltas
+Os cálculos de:
+- horas previstas
 - atrasos
+- faltas
 - horas extras
-- dias presentes
-- dias de folga
+- folgas
+
+DEVEM ser feitos utilizando:
+- a escala válida no dia do registro
 
 ---
 
-# Exportação Excel
+# Problema atual
 
-Gerar arquivo contendo:
-- funcionário
-- data
-- entrada
-- saída
-- horas trabalhadas
-- atraso
-- presença
+Atualmente o sistema provavelmente:
+- busca a escala atual do funcionário
+- recalcula registros antigos usando a escala nova
 
-Nome do arquivo:
-Relatorio_Funcionario_Mes_Ano.xlsx
+Isso está errado.
 
----
+Exemplo do problema:
 
-# APIs esperadas
+Funcionário:
+- janeiro → escala 44h
+- fevereiro → escala 12x36
 
-Utilizar integração REST.
+Se consultar janeiro:
+- sistema NÃO pode usar escala 12x36
 
-Exemplo:
-
-## Funcionários
-- GET /funcionarios
-- POST /funcionarios
-- PUT /funcionarios/{id}
-- DELETE /funcionarios/{id}
+Os registros antigos precisam continuar vinculados:
+- à escala usada na época
 
 ---
 
-## Escalas
-- GET /escalas
-- GET /escalas/funcionario/{id}
-- POST /escalas
-- PUT /escalas/{id}
+# Alteração obrigatória
+
+A tabela RegistroPonto deve possuir referência histórica da escala utilizada.
 
 ---
 
-## Registro de ponto
-- GET /registro-ponto
-- POST /registro-ponto
-- PUT /registro-ponto/{id}
+# Estrutura necessária
+
+Adicionar em RegistroPonto:
+
+```csharp id="gkpk91"
+RegistroPonto
+- RegistroPontoId
+- FuncionarioId
+- Data
+- EscalaId
+- FuncionarioEscalaId
+````
 
 ---
 
-## Férias
-- GET /ferias
-- POST /ferias
-- PUT /ferias/{id}
+# Objetivo de cada campo
+
+## EscalaId
+
+Indica:
+
+* qual escala gerou aquele registro
 
 ---
 
-# Estrutura de pastas sugerida
+## FuncionarioEscalaId
 
-src/
-- components/
-- pages/
-- services/
-- hooks/
-- layouts/
-- routes/
-- types/
-- utils/
+Indica:
 
----
+* qual vínculo histórico estava ativo
 
-# Componentes importantes
+Isso é importante porque:
 
-Criar componentes reutilizáveis:
-
-- DataTable
-- PageHeader
-- ConfirmDialog
-- Loading
-- EmptyState
-- FormField
+* a mesma escala pode sofrer nova versão
+* precisamos saber exatamente qual vínculo estava vigente
 
 ---
 
-# Regras técnicas
+# Regra obrigatória ao criar registro de ponto
 
-- utilizar TypeScript fortemente tipado
-- criar DTOs
-- utilizar react-query para cache
-- criar interceptador axios
-- tratar loading e erro
-- evitar lógica dentro das telas
-- separar services
+Ao gerar registro do dia:
+
+O sistema deve:
+
+## 1. Buscar vínculo histórico válido
+
+```csharp id="q7r2ak"
+FuncionarioEscala
+.Where(x =>
+    x.FuncionarioId == funcionarioId &&
+    x.DataInicio <= data &&
+    (x.DataFim == null || x.DataFim >= data))
+```
 
 ---
 
-# Melhorias desejadas
+## 2. Obter escala correspondente
 
-Adicionar:
-- tema claro/escuro
-- toast de sucesso/erro
-- confirmação ao excluir
-- máscaras de horário
+Carregar:
+
+* Escala
+* EscalaDia
+
+---
+
+## 3. Salvar referência no RegistroPonto
+
+Persistir:
+
+* EscalaId
+* FuncionarioEscalaId
+
+---
+
+# Regra CRÍTICA
+
+Após criado:
+
+* o RegistroPonto NÃO deve depender da escala atual do funcionário
+
+Ele deve:
+
+* utilizar sempre a escala salva nele próprio
+
+---
+
+# Regras de cálculo
+
+Todos os cálculos devem usar:
+
+* EscalaId do RegistroPonto
+
+E NÃO:
+
+* escala atual do funcionário
+
+---
+
+# Cálculos obrigatórios
+
+Calcular a partir da escala:
+
+* horas previstas
+* atraso
+* saída antecipada
+* horas extras
+* falta
+* presença
+* folga
+
+---
+
+# Exemplo esperado
+
+## Escala cadastrada
+
+Segunda:
+
+* entrada 08:00
+* saída 18:00
+
+---
+
+## Registro realizado
+
+Entrada:
+
+* 08:30
+
+Resultado:
+
+* atraso de 30 minutos
+
+---
+
+# Outro exemplo
+
+Funcionário mudou de escala:
+
+Até março:
+
+* 44h semanal
+
+Abril:
+
+* 12x36
+
+---
+
+# Resultado esperado
+
+## Consulta março
+
+Usar:
+
+* escala 44h salva no RegistroPonto
+
+---
+
+## Consulta abril
+
+Usar:
+
+* escala 12x36 salva no RegistroPonto
+
+---
+
+# Período mensal do sistema
+
+IMPORTANTE:
+
+O fechamento mensal NÃO é calendário comum.
+
+O período deve ser:
+
+* dia 21 do mês anterior
+  até
+* dia 20 do mês atual
+
+---
+
+# Exemplos
+
+## Competência Maio
+
+Período:
+
+```text id="otmqhi"
+21/04 até 20/05
+```
+
+---
+
+## Competência Junho
+
+Período:
+
+```text id="5r2w0u"
+21/05 até 20/06
+```
+
+---
+
+# Criar helper/utilitário para competência
+
+Criar lógica centralizada para:
+
+```csharp id="9klf8v"
+ObterPeriodoCompetencia(mes, ano)
+```
+
+Retorno esperado:
+
+```csharp id="nq0wdg"
+DataInicio
+DataFim
+```
+
+---
+
+# Relatórios
+
+Os relatórios mensais devem:
+
+* buscar registros dentro da competência
+* usar escala salva no registro
+* NÃO recalcular baseado na escala atual
+
+---
+
+# Refatorações necessárias
+
+Atualizar:
+
+* entidades
+* DTOs
+* migrations
+* mappings
+* repositories
+* services
+* cálculos
+* relatórios
+* exportação Excel
+* APIs
+
+---
+
+# Regras importantes
+
+## NÃO atualizar registros antigos automaticamente
+
+Quando escala mudar:
+
+* registros antigos permanecem intactos
+
+---
+
+# Regra importante sobre edição de escala
+
+Se uma escala já foi utilizada historicamente:
+
+* evitar edição destrutiva
+
+Preferencialmente:
+
+* criar nova escala
+  OU
+* nova versão da escala
 
 ---
 
 # Objetivo final
 
-O sistema deve parecer:
-- simples
-- rápido
-- profissional
-- fácil para uma pessoa sem conhecimento técnico utilizar
+O sistema deve:
 
-Priorizar:
-- produtividade
-- clareza visual
-- poucos cliques
-- manutenção simples
+* possuir histórico confiável
+* manter rastreabilidade
+* preservar cálculos antigos
+* permitir troca de escala sem quebrar histórico
+* gerar relatórios corretos
+* funcionar como sistema profissional de ponto
+
+```
+```

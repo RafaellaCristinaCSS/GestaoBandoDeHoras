@@ -4,18 +4,15 @@ import { Download } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { funcionarioService } from '@/services/funcionarioService'
 import { registroPontoService } from '@/services/registroPontoService'
-import { escalaService } from '@/services/escalaService'
 import { Loading } from '@/components/Loading'
 import { EmptyState } from '@/components/EmptyState'
-import { Toast } from '@/components/Toast'
-import { Escala, Funcionario, RegistroPonto } from '@/types/api'
+import { useToast } from '@/contexts/ToastContext'
+import { Funcionario, RegistroPonto } from '@/types/api'
 
 const parseLocalDate = (isoDate: string) => {
   const [year, month, day] = isoDate.split('-').map(Number)
   return new Date(year, month - 1, day)
 }
-
-const getDiaSemanaEscala = (date: Date) => (date.getDay() + 6) % 7
 
 const toMinutes = (time?: string) => {
   if (!time) return null
@@ -51,15 +48,9 @@ const getWorkedHours = (registro: RegistroPonto) => {
   return total / 60
 }
 
-const findEscalaDoDia = (escalas: Escala[], dataIso: string) => {
-  const diaSemana = getDiaSemanaEscala(parseLocalDate(dataIso))
-  return escalas.find((escala) => escala.diaSemana === diaSemana && !escala.folga)
-}
-
 type EmployeeReport = {
   funcionario: Funcionario
   registros: RegistroPonto[]
-  escalas: Escala[]
   faltas: RegistroPonto[]
   atrasos: Array<{
     registro: RegistroPonto
@@ -82,11 +73,24 @@ type EmployeeReport = {
   saldoHoras: number
 }
 
+type ExportSections = {
+  faltas: boolean
+  atrasos: boolean
+  horasGerais: boolean
+  horasExtras: boolean
+}
+
 export function RelatoriosPage() {
+  const { showToast } = useToast()
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [isExporting, setIsExporting] = useState(false)
+  const [exportSections, setExportSections] = useState<ExportSections>({
+    faltas: true,
+    atrasos: true,
+    horasGerais: true,
+    horasExtras: true,
+  })
   const [absencesPage, setAbsencesPage] = useState(1)
   const [delaysPage, setDelaysPage] = useState(1)
   const [extrasPage, setExtrasPage] = useState(1)
@@ -111,21 +115,17 @@ export function RelatoriosPage() {
     queryFn: async () => {
       const reports = await Promise.all(
         activeFuncionarios.map(async (funcionario) => {
-          const [registros, escalas] = await Promise.all([
-            registroPontoService.getAll(funcionario.id, selectedMonth, selectedYear),
-            escalaService.getByFuncionarioId(funcionario.id),
-          ])
+          const registros = await registroPontoService.getAll(funcionario.id, selectedMonth, selectedYear)
 
-          const faltas = registros.filter((registro) => !registro.presenca || registro.status === 'Falta')
+          const faltas = registros.filter((registro) => registro.status === 'Falta')
 
           const atrasos = registros
             .map((registro) => {
-              const escalaDoDia = findEscalaDoDia(escalas, registro.data)
-              if (!escalaDoDia) return null
+              if (registro.status === 'Feriado') return null
 
               if (!registro.presenca) return null
 
-              const horasPlanejadasDia = escalaDoDia.horasPrevistas
+              const horasPlanejadasDia = registro.horasPrevistas ?? 0
               const horasCumpridasDia = getWorkedHours(registro)
               const saldoHorasDia = horasCumpridasDia - horasPlanejadasDia
 
@@ -138,20 +138,35 @@ export function RelatoriosPage() {
                 horasPlanejadasDia,
                 horasCumpridasDia,
                 saldoHorasDia,
-                entradaPlanejada: escalaDoDia.horaInicio,
-                saidaPlanejada: escalaDoDia.horaFim,
+                entradaPlanejada: registro.entradaPlanejada,
+                saidaPlanejada: registro.saidaPlanejada,
               }
             })
             .filter((item): item is NonNullable<typeof item> => item !== null)
 
           const extras = registros
             .map((registro) => {
-              const escalaDoDia = findEscalaDoDia(escalas, registro.data)
-              if (!escalaDoDia) return null
+              if (registro.status === 'Feriado') {
+                const horasCumpridasDia = getWorkedHours(registro)
+                const saldoHorasDia = horasCumpridasDia
+
+                if (saldoHorasDia <= 0) {
+                  return null
+                }
+
+                return {
+                  registro,
+                  horasPlanejadasDia: 0,
+                  horasCumpridasDia,
+                  saldoHorasDia,
+                  entradaPlanejada: '-',
+                  saidaPlanejada: '-',
+                }
+              }
 
               if (!registro.presenca) return null
 
-              const horasPlanejadasDia = escalaDoDia.horasPrevistas
+              const horasPlanejadasDia = registro.status === 'Feriado' ? 0 : (registro.horasPrevistas ?? 0)
               const horasCumpridasDia = getWorkedHours(registro)
               const saldoHorasDia = horasCumpridasDia - horasPlanejadasDia
 
@@ -164,17 +179,20 @@ export function RelatoriosPage() {
                 horasPlanejadasDia,
                 horasCumpridasDia,
                 saldoHorasDia,
-                entradaPlanejada: escalaDoDia.horaInicio,
-                saidaPlanejada: escalaDoDia.horaFim,
+                entradaPlanejada: registro.entradaPlanejada,
+                saidaPlanejada: registro.saidaPlanejada,
               }
             })
             .filter((item): item is NonNullable<typeof item> => item !== null)
 
           const totals = registros.reduce(
             (acc, registro) => {
-              const escalaDoDia = findEscalaDoDia(escalas, registro.data)
-              const horasPlanejadasDoDia = escalaDoDia?.horasPrevistas ?? 0
-              const horasCumpridasDoDia = registro.presenca ? getWorkedHours(registro) : 0
+              const horasPlanejadasDoDia = registro.status === 'Feriado' ? 0 : (registro.horasPrevistas ?? 0)
+              const horasCumpridasDoDia = registro.status === 'Feriado'
+                ? getWorkedHours(registro)
+                : registro.presenca
+                  ? getWorkedHours(registro)
+                  : 0
 
               acc.horasPlanejadas += horasPlanejadasDoDia
               acc.horasCumpridas += horasCumpridasDoDia
@@ -186,7 +204,6 @@ export function RelatoriosPage() {
           return {
             funcionario,
             registros,
-            escalas,
             faltas,
             atrasos,
             extras,
@@ -263,7 +280,12 @@ export function RelatoriosPage() {
 
   const handleExportExcel = async () => {
     if (monthly.length === 0) {
-      setToast({ message: 'Nenhum dado para exportar', type: 'error' })
+      showToast('Nenhum dado para exportar', 'error')
+      return
+    }
+
+    if (!Object.values(exportSections).some(Boolean)) {
+      showToast('Selecione ao menos um bloco para exportar.', 'error')
       return
     }
 
@@ -275,6 +297,9 @@ export function RelatoriosPage() {
       const worksheet = XLSX.utils.aoa_to_sheet([])
       const merges: Array<{ s: { r: number; c: number }; e: { r: number; c: number } }> = []
       worksheet['!merges'] = merges
+      const totalColumns = 10
+      const menuColor = '0F172A'
+
       worksheet['!cols'] = [
         { wch: 24 },
         { wch: 14 },
@@ -290,19 +315,19 @@ export function RelatoriosPage() {
 
       const titleStyle: any = {
         font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 16 },
-        fill: { patternType: 'solid', fgColor: { rgb: '1D4ED8' } },
+        fill: { patternType: 'solid', fgColor: { rgb: menuColor } },
         alignment: { horizontal: 'center', vertical: 'center' },
       }
 
       const subtitleStyle: any = {
         font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 12 },
-        fill: { patternType: 'solid', fgColor: { rgb: '0F766E' } },
-        alignment: { horizontal: 'left', vertical: 'center' },
+        fill: { patternType: 'solid', fgColor: { rgb: menuColor } },
+        alignment: { horizontal: 'center', vertical: 'center' },
       }
 
       const headerStyle: any = {
         font: { bold: true, color: { rgb: 'FFFFFF' } },
-        fill: { patternType: 'solid', fgColor: { rgb: '334155' } },
+        fill: { patternType: 'solid', fgColor: { rgb: menuColor } },
         alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
         border: {
           top: { style: 'thin', color: { rgb: 'CBD5E1' } },
@@ -313,7 +338,7 @@ export function RelatoriosPage() {
       }
 
       const cellStyle: any = {
-        alignment: { vertical: 'middle' },
+        alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
         border: {
           top: { style: 'thin', color: { rgb: 'E2E8F0' } },
           bottom: { style: 'thin', color: { rgb: 'E2E8F0' } },
@@ -360,7 +385,7 @@ export function RelatoriosPage() {
 
       const appendMergedTitle = (text: string, style: any) => {
         appendRow([text], style)
-        merges.push({ s: { r: rowIndex - 1, c: 0 }, e: { r: rowIndex - 1, c: 9 } })
+        merges.push({ s: { r: rowIndex - 1, c: 0 }, e: { r: rowIndex - 1, c: totalColumns - 1 } })
       }
 
       const appendSection = (
@@ -372,7 +397,7 @@ export function RelatoriosPage() {
         appendMergedTitle(title, subtitleStyle)
         appendRow(headers, headerStyle)
         rows.forEach((values) => {
-          appendRow(values)
+          appendRow(values, cellStyle)
           if (options?.saldoColumnIndex != null) {
             const saldoValue = Number(values[options.saldoColumnIndex])
             const saldoStyle = saldoValue > 0 ? positiveStyle : saldoValue < 0 ? negativeStyle : neutralStyle
@@ -386,99 +411,107 @@ export function RelatoriosPage() {
       }
 
       appendMergedTitle(`Relatório de Horas - ${monthName} / ${selectedYear}`, titleStyle)
-      appendMergedTitle(`Gerado em ${new Date().toLocaleString('pt-BR')}`, cellStyle)
+  appendMergedTitle(`Gerado em ${new Date().toLocaleString('pt-BR')}`, subtitleStyle)
       appendRow([])
 
-      appendSection(
-        'Faltas',
-        ['Funcionário', 'Dia', 'Observação'],
-        absences.map((item) => [
-          item.funcionario,
-          parseLocalDate(item.data).toLocaleDateString('pt-BR'),
-          item.observacao,
-        ])
-      )
+      if (exportSections.faltas) {
+        appendSection(
+          'Faltas',
+          ['Funcionário', 'Dia', 'Observação'],
+          absences.map((item) => [
+            item.funcionario,
+            parseLocalDate(item.data).toLocaleDateString('pt-BR'),
+            item.observacao,
+          ])
+        )
+      }
 
-      appendSection(
-        'Atrasos',
-        [
-          'Funcionário',
-          'Dia',
-          'Entrada planejada',
-          'Entrada real',
-          'Saída planejada',
-          'Saída real',
-          'Horas planejadas',
-          'Horas cumpridas',
-          'Saldo',
-          'Observação',
-        ],
-        delays.map((item) => [
-          item.funcionario,
-          parseLocalDate(item.data).toLocaleDateString('pt-BR'),
-          item.entradaPlanejada,
-          item.entradaReal,
-          item.saidaPlanejada,
-          item.saidaReal,
-          item.horasPlanejadasDia,
-          item.horasCumpridasDia,
-          item.saldoHorasDia,
-          item.observacao,
-        ]),
-        { saldoColumnIndex: 8 }
-      )
+      if (exportSections.atrasos) {
+        appendSection(
+          'Atrasos',
+          [
+            'Funcionário',
+            'Dia',
+            'Entrada Prevista',
+            'Entrada Real',
+            'Saída Prevista',
+            'Saída Real',
+            'Horas Previstas',
+            'Horas Trabalhadas',
+            'Saldo',
+            'Observação',
+          ],
+          delays.map((item) => [
+            item.funcionario,
+            parseLocalDate(item.data).toLocaleDateString('pt-BR'),
+            item.entradaPlanejada,
+            item.entradaReal,
+            item.saidaPlanejada,
+            item.saidaReal,
+            item.horasPlanejadasDia,
+            item.horasCumpridasDia,
+            item.saldoHorasDia,
+            item.observacao,
+          ]),
+          { saldoColumnIndex: 8 }
+        )
+      }
 
-      appendSection(
-        'Horas gerais',
-        ['Funcionário', 'Horas planejadas', 'Horas cumpridas', 'Saldo', 'Faltas', 'Atrasos'],
-        monthly.map((item) => [
-          item.funcionario.nome,
-          item.horasPlanejadas,
-          item.horasCumpridas,
-          item.saldoHoras,
-          item.faltas.length,
-          item.atrasos.length,
-        ]),
-        { saldoColumnIndex: 3 }
-      )
+      if (exportSections.horasGerais) {
+        appendSection(
+          'Horas gerais',
+          ['Funcionário', 'Horas planejadas', 'Horas cumpridas', 'Saldo', 'Faltas', 'Atrasos'],
+          monthly.map((item) => [
+            item.funcionario.nome,
+            item.horasPlanejadas,
+            item.horasCumpridas,
+            item.saldoHoras,
+            item.faltas.length,
+            item.atrasos.length,
+          ]),
+          { saldoColumnIndex: 3 }
+        )
+      }
 
-      appendSection(
-        'Horas extras',
-        [
-          'Funcionário',
-          'Dia',
-          'Entrada planejada',
-          'Entrada real',
-          'Saída planejada',
-          'Saída real',
-          'Horas planejadas',
-          'Horas cumpridas',
+      if (exportSections.horasExtras) {
+        appendSection(
           'Horas extras',
-          'Observação',
-        ],
-        extras.map((item) => [
-          item.funcionario,
-          parseLocalDate(item.data).toLocaleDateString('pt-BR'),
-          item.entradaPlanejada,
-          item.entradaReal,
-          item.saidaPlanejada,
-          item.saidaReal,
-          item.horasPlanejadasDia,
-          item.horasCumpridasDia,
-          item.saldoHorasDia,
-          item.observacao,
-        ]),
-        { saldoColumnIndex: 8 }
-      )
+          [
+            'Funcionário',
+            'Dia',
+            'Entrada Prevista',
+            'Entrada Real',
+            'Saída Prevista',
+            'Saída Real',
+            'Horas Previstas',
+            'Horas Trabalhadas',
+            'Horas extras',
+            'Observação',
+          ],
+          extras.map((item) => [
+            item.funcionario,
+            parseLocalDate(item.data).toLocaleDateString('pt-BR'),
+            item.entradaPlanejada,
+            item.entradaReal,
+            item.saidaPlanejada,
+            item.saidaReal,
+            item.horasPlanejadasDia,
+            item.horasCumpridasDia,
+            item.saldoHorasDia,
+            item.observacao,
+          ]),
+          { saldoColumnIndex: 8 }
+        )
+      }
 
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Relatorio')
 
       const fileName = `Relatorio_Geral_${monthName}_${selectedYear}.ods`
       XLSX.writeFile(workbook, fileName, { bookType: 'ods' })
 
-      setToast({ message: 'Relatório exportado com sucesso!', type: 'success' })
+      showToast('Relatório exportado com sucesso!', 'success')
     } catch {
-      setToast({ message: 'Erro ao exportar relatório', type: 'error' })
+      showToast('Erro ao exportar relatório', 'error')
     } finally {
       setIsExporting(false)
     }
@@ -519,16 +552,10 @@ export function RelatoriosPage() {
 
   return (
     <div>
-      {toast && (
-        <div className="mb-4">
-          <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
-        </div>
-      )}
-
       <div className="mb-6">
         <h1 className="mb-6 text-3xl font-bold text-slate-900">Relatórios</h1>
         <div className="mb-6 rounded-lg bg-white p-6 shadow">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-700">Mês *</label>
               <select
@@ -569,6 +596,48 @@ export function RelatoriosPage() {
                 <Download size={20} />
                 Exportar Excel
               </button>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p className="mb-3 text-sm font-semibold text-slate-700">Personalizar planilha exportada</p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="rounded border-slate-300"
+                  checked={exportSections.faltas}
+                  onChange={(e) => setExportSections((prev) => ({ ...prev, faltas: e.target.checked }))}
+                />
+                Faltas
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="rounded border-slate-300"
+                  checked={exportSections.atrasos}
+                  onChange={(e) => setExportSections((prev) => ({ ...prev, atrasos: e.target.checked }))}
+                />
+                Atrasos
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="rounded border-slate-300"
+                  checked={exportSections.horasExtras}
+                  onChange={(e) => setExportSections((prev) => ({ ...prev, horasExtras: e.target.checked }))}
+                />
+                Horas extras
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="rounded border-slate-300"
+                  checked={exportSections.horasGerais}
+                  onChange={(e) => setExportSections((prev) => ({ ...prev, horasGerais: e.target.checked }))}
+                />
+                Horas gerais
+              </label>
             </div>
           </div>
         </div>

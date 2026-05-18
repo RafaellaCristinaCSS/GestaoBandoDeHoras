@@ -1,8 +1,12 @@
 import axios from 'axios'
 
+const isProd = Boolean((import.meta as any).env.PROD)
+
 const API_BASE_URL =
   (import.meta as any).env.VITE_API_URL ||
-  'https://gestaobandodehoras-production.up.railway.app/api'
+  (isProd
+    ? 'https://gestaobandodehoras-production.up.railway.app/api'
+    : 'http://localhost:5264/api')
 
 const api = axios.create({
   baseURL: API_BASE_URL,

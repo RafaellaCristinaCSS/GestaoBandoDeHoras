@@ -16,7 +16,16 @@ namespace Portal.Models
         public string HoraAlmocoFim { get; set; }
         public string HoraSaida { get; set; }
         public bool Presenca { get; set; }
+        public bool Feriado { get; set; }
         public string Observacao { get; set; }
+
+        /// <summary>Referência histórica da escala usada neste registro. NÃO muda com trocas futuras.</summary>
+        public int? EscalaId { get; set; }
+        public Escala? Escala { get; set; }
+
+        /// <summary>Referência histórica do vínculo funcionário-escala ativo na data do registro.</summary>
+        public int? FuncionarioEscalaId { get; set; }
+        public FuncionarioEscala? FuncionarioEscalaVinculo { get; set; }
 
         public Funcionario? Funcionario { get; set; }
 

@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Portal.Models;
 using Portal.Data;
+using Portal.Utils;
 using Microsoft.EntityFrameworkCore;
 
 namespace Portal.Repositories
@@ -23,12 +24,17 @@ namespace Portal.Repositories
         private readonly AppDbContext _context;
         public RegistroPontoRepository(AppDbContext context) => _context = context;
 
+        private static IQueryable<RegistroPonto> WithIncludes(IQueryable<RegistroPonto> q)
+            => q.Include(x => x.Funcionario)
+                .Include(x => x.Escala).ThenInclude(e => e!.Detalhes)
+                .Include(x => x.FuncionarioEscalaVinculo);
+
         public async Task<IEnumerable<RegistroPonto>> GetAllAsync()
-            => await _context.Set<RegistroPonto>().Include(x => x.Funcionario).Where(x => !x.Excluded).ToListAsync();
+            => await WithIncludes(_context.Set<RegistroPonto>().Where(x => !x.Excluded)).ToListAsync();
 
         public async Task<IEnumerable<RegistroPonto>> GetFilteredAsync(int? funcionarioId, int? mes, int? ano)
         {
-            var query = _context.Set<RegistroPonto>().Include(x => x.Funcionario).Where(x => !x.Excluded).AsQueryable();
+            var query = WithIncludes(_context.Set<RegistroPonto>().Where(x => !x.Excluded));
 
             if (funcionarioId.HasValue)
             {
@@ -38,9 +44,8 @@ namespace Portal.Repositories
 
             if (mes.HasValue && ano.HasValue)
             {
-                var dataInicio = new DateTime(ano.Value,mes.Value,1,0,0,0,DateTimeKind.Utc).AddMonths(-1).AddDays(21);
-                var dataFimExclusiva = new DateTime(ano.Value,mes.Value,22,0,0,0,DateTimeKind.Utc);
-                query = query.Where(x => x.Data >= dataInicio && x.Data < dataFimExclusiva);
+                var (dataInicio, dataFim) = CompetenciaHelper.ObterPeriodoCompetencia(mes.Value, ano.Value);
+                query = query.Where(x => x.Data >= dataInicio && x.Data <= dataFim);
             }
             else
             {
@@ -54,8 +59,8 @@ namespace Portal.Repositories
             return await query.OrderBy(x => x.Data).ToListAsync();
         }
 
-public async Task<RegistroPonto?> GetByIdAsync(int id)
-    => await _context.Set<RegistroPonto>().Include(x => x.Funcionario).FirstOrDefaultAsync(x => x.Id == id);
+        public async Task<RegistroPonto?> GetByIdAsync(int id)
+            => await WithIncludes(_context.Set<RegistroPonto>()).FirstOrDefaultAsync(x => x.Id == id);
 
         public async Task AddAsync(RegistroPonto entity)
         {

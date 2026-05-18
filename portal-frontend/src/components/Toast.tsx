@@ -8,24 +8,24 @@ interface ToastProps {
 
 export function Toast({ message, type, onClose }: ToastProps) {
   const bgColor = {
-    success: 'bg-green-100 border-green-300',
-    error: 'bg-red-100 border-red-300',
-    info: 'bg-blue-100 border-blue-300',
+    success: 'bg-emerald-50 border-emerald-300',
+    error: 'bg-rose-50 border-rose-300',
+    info: 'bg-sky-50 border-sky-300',
   }[type]
 
   const textColor = {
-    success: 'text-green-800',
-    error: 'text-red-800',
-    info: 'text-blue-800',
+    success: 'text-emerald-800',
+    error: 'text-rose-800',
+    info: 'text-sky-800',
   }[type]
 
   const Icon = type === 'error' ? AlertCircle : CheckCircle
 
   return (
-    <div className={`border rounded-lg p-4 ${bgColor} ${textColor} flex items-gap-3 gap-3`}>
-      <Icon size={20} />
-      <span>{message}</span>
-      <button onClick={onClose} className="ml-auto text-lg">&times;</button>
+    <div className={`flex items-start gap-3 rounded-lg border p-3 shadow-lg backdrop-blur-sm ${bgColor} ${textColor}`}>
+      <Icon size={20} className="mt-0.5 shrink-0" />
+      <span className="text-sm font-medium">{message}</span>
+      <button onClick={onClose} className="ml-auto text-lg leading-none opacity-70 hover:opacity-100" aria-label="Fechar notificação">&times;</button>
     </div>
   )
 }

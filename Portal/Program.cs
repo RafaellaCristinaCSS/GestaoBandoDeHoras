@@ -104,13 +104,18 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // Repositories
 builder.Services.AddScoped<IFuncionarioRepository,FuncionarioRepository>();
+builder.Services.AddScoped<ICargoRepository,CargoRepository>();
 builder.Services.AddScoped<IEscalaRepository,EscalaRepository>();
+builder.Services.AddScoped<IEscalaDetalheRepository,EscalaDetalheRepository>();
+builder.Services.AddScoped<IFuncionarioEscalaRepository,FuncionarioEscalaRepository>();
 builder.Services.AddScoped<IRegistroPontoRepository,RegistroPontoRepository>();
 builder.Services.AddScoped<IFeriasRepository,FeriasRepository>();
 
 // Services
 builder.Services.AddScoped<IFuncionarioService,FuncionarioService>();
+builder.Services.AddScoped<ICargoService,CargoService>();
 builder.Services.AddScoped<IEscalaService,EscalaService>();
+builder.Services.AddScoped<IFuncionarioEscalaService,FuncionarioEscalaService>();
 builder.Services.AddScoped<IRegistroPontoService,RegistroPontoService>();
 builder.Services.AddScoped<IFeriasService,FeriasService>();
 

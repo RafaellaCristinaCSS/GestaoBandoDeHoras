@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Portal.Data;
@@ -11,9 +12,11 @@ using Portal.Data;
 namespace Portal.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260518215012_RefactorEscalasCentralizadas")]
+    partial class RefactorEscalasCentralizadas
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -229,9 +232,6 @@ namespace Portal.Migrations
                     b.Property<int>("FuncionarioId")
                         .HasColumnType("integer");
 
-                    b.Property<bool?>("TrabalhaDiaPar")
-                        .HasColumnType("boolean");
-
                     b.HasKey("Id");
 
                     b.HasIndex("EscalaId");
@@ -258,17 +258,11 @@ namespace Portal.Migrations
                     b.Property<DateTime>("Data")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int?>("EscalaId")
-                        .HasColumnType("integer");
-
                     b.Property<bool>("Excluded")
                         .HasColumnType("boolean");
 
                     b.Property<bool>("Feriado")
                         .HasColumnType("boolean");
-
-                    b.Property<int?>("FuncionarioEscalaId")
-                        .HasColumnType("integer");
 
                     b.Property<int?>("FuncionarioId")
                         .HasColumnType("integer");
@@ -306,10 +300,6 @@ namespace Portal.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("EscalaId");
-
-                    b.HasIndex("FuncionarioEscalaId");
 
                     b.HasIndex("FuncionarioId");
 
@@ -357,25 +347,11 @@ namespace Portal.Migrations
 
             modelBuilder.Entity("Portal.Models.RegistroPonto", b =>
                 {
-                    b.HasOne("Portal.Models.Escala", "Escala")
-                        .WithMany()
-                        .HasForeignKey("EscalaId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Portal.Models.FuncionarioEscala", "FuncionarioEscalaVinculo")
-                        .WithMany()
-                        .HasForeignKey("FuncionarioEscalaId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("Portal.Models.Funcionario", "Funcionario")
                         .WithMany()
                         .HasForeignKey("FuncionarioId");
 
-                    b.Navigation("Escala");
-
                     b.Navigation("Funcionario");
-
-                    b.Navigation("FuncionarioEscalaVinculo");
                 });
 
             modelBuilder.Entity("Portal.Models.Escala", b =>

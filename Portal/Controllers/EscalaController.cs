@@ -7,7 +7,6 @@ namespace Portal.Controllers
 {
     [ApiController]
     [Route("api/escalas")]
-    [Route("api/[controller]")]
     [Authorize(Policy = "Public")]
     public class EscalaController : ControllerBase
     {
@@ -25,19 +24,12 @@ namespace Portal.Controllers
             return Ok(result);
         }
 
-        [HttpGet("funcionario/{funcionarioId}")]
-        public async Task<IActionResult> GetByFuncionario(int funcionarioId)
-        {
-            var result = await _service.GetByFuncionarioAsync(funcionarioId);
-            return Ok(result);
-        }
-
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
             var entity = await _service.GetByIdAsync(id);
             if (entity == null)
-                return NotFound($"Escala não encontrado.");
+                return NotFound("Escala não encontrada.");
 
             return Ok(entity);
         }
@@ -54,7 +46,7 @@ namespace Portal.Controllers
         {
             var updated = await _service.UpdateAsync(id, dto);
             if (!updated)
-                return NotFound($"Escala não encontrado para atualização.");
+                return NotFound("Escala não encontrada para atualização.");
 
             return NoContent();
         }
@@ -64,7 +56,36 @@ namespace Portal.Controllers
         {
             var deleted = await _service.DeleteAsync(id);
             if (!deleted)
-                return NotFound($"Escala não encontrado para exclusão.");
+                return NotFound("Escala não encontrada para exclusão.");
+
+            return NoContent();
+        }
+
+        // ─── Detalhes ────────────────────────────────────────────────────────────
+
+        [HttpPost("{escalaId}/detalhes")]
+        public async Task<IActionResult> AddDetalhe(int escalaId, [FromBody] EscalaDetalheCreateDto dto)
+        {
+            var created = await _service.AddDetalheAsync(escalaId, dto);
+            return Ok(created);
+        }
+
+        [HttpPut("detalhes/{detalheId}")]
+        public async Task<IActionResult> UpdateDetalhe(int detalheId, [FromBody] EscalaDetalheUpdateDto dto)
+        {
+            var updated = await _service.UpdateDetalheAsync(detalheId, dto);
+            if (!updated)
+                return NotFound("Detalhe não encontrado para atualização.");
+
+            return NoContent();
+        }
+
+        [HttpDelete("detalhes/{detalheId}")]
+        public async Task<IActionResult> DeleteDetalhe(int detalheId)
+        {
+            var deleted = await _service.DeleteDetalheAsync(detalheId);
+            if (!deleted)
+                return NotFound("Detalhe não encontrado para exclusão.");
 
             return NoContent();
         }

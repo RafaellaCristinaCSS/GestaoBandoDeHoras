@@ -14,6 +14,17 @@ const parseLocalDate = (isoDate: string) => {
   return new Date(year, month - 1, day)
 }
 
+const isToday = (isoDate: string) => {
+  const data = parseLocalDate(isoDate)
+  const hoje = new Date()
+
+  return (
+    data.getFullYear() === hoje.getFullYear() &&
+    data.getMonth() === hoje.getMonth() &&
+    data.getDate() === hoje.getDate()
+  )
+}
+
 const getEscalaDiaSemana = (data: Date) => (data.getDay() + 6) % 7
 
 const toMinutes = (time?: string) => {
@@ -48,7 +59,10 @@ const getHorasTrabalhadas = (registro: RegistroPonto) => {
   return total / 60
 }
 
-const getHorasPlanejadas = (dataIso: string, escalas: Escala[]) => {
+const getHorasPlanejadas = (registro: RegistroPonto, escalas: Escala[]) => {
+  if (registro.status === 'Feriado') return 0
+
+  const dataIso = registro.data
   const diaSemana = getEscalaDiaSemana(parseLocalDate(dataIso))
   const escalaDoDia = escalas.find((e) => e.diaSemana === diaSemana)
 
@@ -88,8 +102,8 @@ export function RegistroPontoPage() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, field, value }: { id: number; field: string; value: string | boolean }) =>
-      registroPontoService.update(id, { [field]: value } as any),
+    mutationFn: ({ id, data }: { id: number; data: Record<string, string | boolean> }) =>
+      registroPontoService.update(id, data as any),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ['registros-ponto', selectedFuncionarioId, selectedMonth, selectedYear],
@@ -108,7 +122,43 @@ export function RegistroPontoPage() {
   // }
 
   const handleCellChange = (registroId: number, field: string, value: string | boolean) => {
-    updateMutation.mutate({ id: registroId, field, value })
+    updateMutation.mutate({ id: registroId, data: { [field]: value } })
+  }
+
+  const handleStatusChange = (registroId: number, status: string) => {
+    if (status === 'Feriado') {
+      updateMutation.mutate({
+        id: registroId,
+        data: {
+          feriado: true,
+          presenca: false,
+          entrada: '',
+          almocInicio: '',
+          almocFim: '',
+          saida: '',
+        },
+      })
+      return
+    }
+
+    if (status === 'Falta') {
+      updateMutation.mutate({
+        id: registroId,
+        data: {
+          feriado: false,
+          presenca: false,
+        },
+      })
+      return
+    }
+
+    updateMutation.mutate({
+      id: registroId,
+      data: {
+        feriado: false,
+        presenca: true,
+      },
+    })
   }
 
   const selectedFuncionario = funcionarios?.find((f) => f.id === selectedFuncionarioId)
@@ -210,7 +260,6 @@ export function RegistroPontoPage() {
                     <th className="px-4 py-3 text-left font-semibold text-slate-900">Almoço Ini.</th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-900">Almoço Fim</th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-900">Saída</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-900">Presença</th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-900">Status</th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-900">Horas</th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-900">Obs.</th>
@@ -219,14 +268,18 @@ export function RegistroPontoPage() {
                 <tbody className="divide-y">
                   {registros.map((registro) => {
                     const horasTrabalhadas = getHorasTrabalhadas(registro)
-                    const horasPlanejadas = getHorasPlanejadas(registro.data, escalas ?? [])
+                    const horasPlanejadas = getHorasPlanejadas(registro, escalas ?? [])
                     const saldoHoras =
                       horasTrabalhadas != null && horasPlanejadas != null
                         ? horasTrabalhadas - horasPlanejadas
                         : null
+                    const linhaDiaAtual = isToday(registro.data)
 
                     return (
-                    <tr key={registro.id} className="hover:bg-slate-50">
+                    <tr
+                      key={registro.id}
+                      className={linhaDiaAtual ? 'bg-amber-50/70 hover:bg-amber-100/70' : 'hover:bg-slate-50'}
+                    >
                       <td className="px-4 py-3 text-slate-900">
                         {parseLocalDate(registro.data).toLocaleDateString('pt-BR')}
                       </td>
@@ -284,29 +337,15 @@ export function RegistroPontoPage() {
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <input
-                          type="checkbox"
-                          checked={registro.presenca}
-                          onChange={(e) => {
-                            handleCellChange(registro.id, 'presenca', e.target.checked)
-                          }}
-                          className="rounded border-slate-300"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`px-2 py-1 rounded text-xs font-semibold ${
-                            registro.status === 'Presente'
-                              ? 'bg-green-100 text-green-800'
-                              : registro.status === 'Falta'
-                                ? 'bg-red-100 text-red-800'
-                                : registro.status === 'Folga'
-                                  ? 'bg-blue-100 text-blue-800'
-                                  : 'bg-yellow-100 text-yellow-800'
-                          }`}
+                        <select
+                          value={registro.status}
+                          onChange={(e) => handleStatusChange(registro.id, e.target.value)}
+                          className="rounded border border-slate-300 px-2 py-1 text-xs"
                         >
-                          {registro.status}
-                        </span>
+                          <option value="Presente">Presente</option>
+                          <option value="Falta">Falta</option>
+                          <option value="Feriado">Feriado</option>
+                        </select>
                       </td>
                       <td className="px-4 py-3">
                         {saldoHoras == null ? (
