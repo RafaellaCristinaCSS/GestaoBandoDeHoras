@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Download } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import Select from 'react-select'
 import { funcionarioService } from '@/services/funcionarioService'
 import { registroPontoService } from '@/services/registroPontoService'
 import { Loading } from '@/components/Loading'
@@ -92,6 +93,10 @@ export function RelatoriosPage() {
   }
 
   const selectedFuncionario = funcionarios?.find((f) => f.id === selectedFuncionarioId)
+  const funcionarioOptions =
+    funcionarios?.map((f) => ({ value: f.id, label: f.nome })) ?? []
+  const selectedFuncionarioOption =
+    funcionarioOptions.find((o) => o.value === selectedFuncionarioId) ?? null
   const stats = calculateStats()
 
   if (isLoadingFunc) return <Loading />
@@ -114,18 +119,15 @@ export function RelatoriosPage() {
           <div className="grid grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">Funcionário *</label>
-              <select
-                value={selectedFuncionarioId || ''}
-                onChange={(e) => setSelectedFuncionarioId(e.target.value ? Number(e.target.value) : null)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
-              >
-                <option value="">-- Selecione --</option>
-                {funcionarios?.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.nome}
-                  </option>
-                ))}
-              </select>
+              <Select
+                options={funcionarioOptions}
+                value={selectedFuncionarioOption}
+                isClearable
+                isSearchable
+                placeholder="Buscar funcionário..."
+                noOptionsMessage={() => 'Nenhum funcionário encontrado'}
+                onChange={(option) => setSelectedFuncionarioId(option?.value ?? null)}
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">Mês *</label>

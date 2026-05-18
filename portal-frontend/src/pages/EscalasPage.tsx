@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Trash2, Edit2 } from 'lucide-react'
+import Select from 'react-select'
 import { funcionarioService } from '@/services/funcionarioService'
 import { escalaService } from '@/services/escalaService'
 import { Loading } from '@/components/Loading'
@@ -98,6 +99,10 @@ export function EscalasPage() {
 
   const selectedFuncionario = funcionarios?.find((f) => f.id === selectedFuncionarioId)
   const editingEscala = editingId ? escalas?.find((e) => e.id === editingId) : undefined
+  const funcionarioOptions =
+    funcionarios?.map((f) => ({ value: f.id, label: f.nome })) ?? []
+  const selectedFuncionarioOption =
+    funcionarioOptions.find((o) => o.value === selectedFuncionarioId) ?? null
 
   const closeModal = () => {
     setIsModalOpen(false)
@@ -125,21 +130,18 @@ export function EscalasPage() {
           <label className="block text-sm font-medium text-slate-700 mb-2">
             Selecione um funcionário *
           </label>
-          <select
-            value={selectedFuncionarioId || ''}
-            onChange={(e) => {
-              setSelectedFuncionarioId(e.target.value ? Number(e.target.value) : null)
+          <Select
+            options={funcionarioOptions}
+            value={selectedFuncionarioOption}
+            isClearable
+            isSearchable
+            placeholder="Buscar funcionário..."
+            noOptionsMessage={() => 'Nenhum funcionário encontrado'}
+            onChange={(option) => {
+              setSelectedFuncionarioId(option?.value ?? null)
               setEditingId(null)
             }}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
-          >
-            <option value="">-- Selecione um funcionário --</option>
-            {funcionarios?.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.nome}
-              </option>
-            ))}
-          </select>
+          />
         </div>
       </div>
 

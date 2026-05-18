@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import Select from 'react-select'
 import { funcionarioService } from '@/services/funcionarioService'
 import { registroPontoService } from '@/services/registroPontoService'
 import { escalaService } from '@/services/escalaService'
@@ -71,6 +72,10 @@ export function RegistroPontoPage() {
   }
 
   const selectedFuncionario = funcionarios?.find((f) => f.id === selectedFuncionarioId)
+  const funcionarioOptions =
+    funcionarios?.map((f) => ({ value: f.id, label: f.nome })) ?? []
+  const selectedFuncionarioOption =
+    funcionarioOptions.find((o) => o.value === selectedFuncionarioId) ?? null
   const daysInMonth = getDaysInMonth(selectedYear, selectedMonth)
   // const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1)
 
@@ -97,20 +102,17 @@ export function RegistroPontoPage() {
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Funcionário *
               </label>
-              <select
-                value={selectedFuncionarioId || ''}
-                onChange={(e) => {
-                  setSelectedFuncionarioId(e.target.value ? Number(e.target.value) : null)
+              <Select
+                options={funcionarioOptions}
+                value={selectedFuncionarioOption}
+                isClearable
+                isSearchable
+                placeholder="Buscar funcionário..."
+                noOptionsMessage={() => 'Nenhum funcionário encontrado'}
+                onChange={(option) => {
+                  setSelectedFuncionarioId(option?.value ?? null)
                 }}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
-              >
-                <option value="">-- Selecione --</option>
-                {funcionarios?.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.nome}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
 
             <div>
