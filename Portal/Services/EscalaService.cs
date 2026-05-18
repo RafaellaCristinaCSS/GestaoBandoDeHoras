@@ -30,6 +30,8 @@ namespace Portal.Services
                 DiaSemana = ParseDiaSemana(e.DiaSemana),
                 HoraInicio = e.HoraInicio,
                 HoraFim = e.HoraFim,
+                HoraAlmocoInicio = e.HoraAlmocoInicio,
+                HoraAlmocoFim = e.HoraAlmocoFim,
                 HorasPrevistas = e.HorasPrevistas,
                 Folga = e.Folga,
                 FuncionarioName = e.Funcionario?.Nome,
@@ -49,6 +51,8 @@ namespace Portal.Services
                 DiaSemana = ParseDiaSemana(e.DiaSemana),
                 HoraInicio = e.HoraInicio,
                 HoraFim = e.HoraFim,
+                HoraAlmocoInicio = e.HoraAlmocoInicio,
+                HoraAlmocoFim = e.HoraAlmocoFim,
                 HorasPrevistas = e.HorasPrevistas,
                 Folga = e.Folga,
                 FuncionarioName = e.Funcionario?.Nome,
@@ -70,6 +74,8 @@ namespace Portal.Services
                 DiaSemana = ParseDiaSemana(entity.DiaSemana),
                 HoraInicio = entity.HoraInicio,
                 HoraFim = entity.HoraFim,
+                HoraAlmocoInicio = entity.HoraAlmocoInicio,
+                HoraAlmocoFim = entity.HoraAlmocoFim,
                 HorasPrevistas = entity.HorasPrevistas,
                 Folga = entity.Folga,
                 FuncionarioName = entity.Funcionario?.Nome,
@@ -93,6 +99,8 @@ namespace Portal.Services
             entity.DiaSemana = dto.DiaSemana.ToString();
             entity.HoraInicio = dto.HoraInicio;
             entity.HoraFim = dto.HoraFim;
+            entity.HoraAlmocoInicio = dto.HoraAlmocoInicio;
+            entity.HoraAlmocoFim = dto.HoraAlmocoFim;
             entity.HorasPrevistas = dto.HorasPrevistas;
             entity.Folga = dto.Folga;
 
@@ -119,6 +127,8 @@ namespace Portal.Services
                 entity.DiaSemana = dto.DiaSemana.Value.ToString();
             entity.HoraInicio = dto.HoraInicio ?? entity.HoraInicio;
             entity.HoraFim = dto.HoraFim ?? entity.HoraFim;
+            entity.HoraAlmocoInicio = dto.HoraAlmocoInicio ?? entity.HoraAlmocoInicio;
+            entity.HoraAlmocoFim = dto.HoraAlmocoFim ?? entity.HoraAlmocoFim;
             if (dto.HorasPrevistas != null)
                 entity.HorasPrevistas = dto.HorasPrevistas ?? entity.HorasPrevistas;
             if (dto.Folga != null)
@@ -145,15 +155,15 @@ namespace Portal.Services
 
         public async Task CreateEscalasPadraoAsync(int funcionarioId)
         {
-            // Segunda a quinta: 7:00 às 17:00 (10 horas)
-            // Sexta: 7:00 às 16:00 (9 horas)
+            // Segunda a quinta: 7:00 às 17:00 com almoço 12:00-13:00 (9 horas previstas)
+            // Sexta: 7:00 às 16:00 com almoço 12:00-13:00 (8 horas previstas)
             var escalas = new List<Escala>
             {
-                new Escala { EscalaId = funcionarioId, FuncionarioId = funcionarioId, DiaSemana = "0", HoraInicio = "07:00", HoraFim = "17:00", HorasPrevistas = 10, Folga = false, StartDate = DateTime.UtcNow, Excluded = false }, // Segunda
-                new Escala { EscalaId = funcionarioId, FuncionarioId = funcionarioId, DiaSemana = "1", HoraInicio = "07:00", HoraFim = "17:00", HorasPrevistas = 10, Folga = false, StartDate = DateTime.UtcNow, Excluded = false }, // Terça
-                new Escala { EscalaId = funcionarioId, FuncionarioId = funcionarioId, DiaSemana = "2", HoraInicio = "07:00", HoraFim = "17:00", HorasPrevistas = 10, Folga = false, StartDate = DateTime.UtcNow, Excluded = false }, // Quarta
-                new Escala { EscalaId = funcionarioId, FuncionarioId = funcionarioId, DiaSemana = "3", HoraInicio = "07:00", HoraFim = "17:00", HorasPrevistas = 10, Folga = false, StartDate = DateTime.UtcNow, Excluded = false }, // Quinta
-                new Escala { EscalaId = funcionarioId, FuncionarioId = funcionarioId, DiaSemana = "4", HoraInicio = "07:00", HoraFim = "16:00", HorasPrevistas = 9, Folga = false, StartDate = DateTime.UtcNow, Excluded = false }  // Sexta
+                new Escala { EscalaId = funcionarioId, FuncionarioId = funcionarioId, DiaSemana = "0", HoraInicio = "07:00", HoraFim = "17:00", HoraAlmocoInicio = "12:00", HoraAlmocoFim = "13:00", HorasPrevistas = 9, Folga = false, StartDate = DateTime.UtcNow, Excluded = false }, // Segunda
+                new Escala { EscalaId = funcionarioId, FuncionarioId = funcionarioId, DiaSemana = "1", HoraInicio = "07:00", HoraFim = "17:00", HoraAlmocoInicio = "12:00", HoraAlmocoFim = "13:00", HorasPrevistas = 9, Folga = false, StartDate = DateTime.UtcNow, Excluded = false }, // Terça
+                new Escala { EscalaId = funcionarioId, FuncionarioId = funcionarioId, DiaSemana = "2", HoraInicio = "07:00", HoraFim = "17:00", HoraAlmocoInicio = "12:00", HoraAlmocoFim = "13:00", HorasPrevistas = 9, Folga = false, StartDate = DateTime.UtcNow, Excluded = false }, // Quarta
+                new Escala { EscalaId = funcionarioId, FuncionarioId = funcionarioId, DiaSemana = "3", HoraInicio = "07:00", HoraFim = "17:00", HoraAlmocoInicio = "12:00", HoraAlmocoFim = "13:00", HorasPrevistas = 9, Folga = false, StartDate = DateTime.UtcNow, Excluded = false }, // Quinta
+                new Escala { EscalaId = funcionarioId, FuncionarioId = funcionarioId, DiaSemana = "4", HoraInicio = "07:00", HoraFim = "16:00", HoraAlmocoInicio = "12:00", HoraAlmocoFim = "13:00", HorasPrevistas = 8, Folga = false, StartDate = DateTime.UtcNow, Excluded = false }  // Sexta
             };
 
             foreach (var escala in escalas)

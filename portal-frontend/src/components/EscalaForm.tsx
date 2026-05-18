@@ -1,8 +1,19 @@
-import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { Escala, CreateEscalaDTO } from '@/types/api'
+
+const escalaSchema = z.object({
+  diaSemana: z.coerce.number().min(0).max(6),
+  horaInicio: z.string().regex(/^\d{2}:\d{2}$/, 'Formato: HH:MM'),
+  horaFim: z.string().regex(/^\d{2}:\d{2}$/, 'Formato: HH:MM'),
+  horaAlmocoInicio: z.string().regex(/^\d{2}:\d{2}$/, 'Formato: HH:MM').optional(),
+  horaAlmocoFim: z.string().regex(/^\d{2}:\d{2}$/, 'Formato: HH:MM').optional(),
+  horasPrevistas: z.coerce.number().min(0),
+  folga: z.boolean(),
+})
+
+export type EscalaFormData = z.infer<typeof escalaSchema>
 
 interface EscalaFormProps {
   funcionarioId: number
@@ -11,23 +22,13 @@ interface EscalaFormProps {
   isLoading?: boolean
 }
 
-const escalaSchema = z.object({
-  diaSemana: z.coerce.number().min(0).max(6),
-  horaInicio: z.string().regex(/^\d{2}:\d{2}$/, 'Formato: HH:MM'),
-  horaFim: z.string().regex(/^\d{2}:\d{2}$/, 'Formato: HH:MM'),
-  horasPrevistas: z.coerce.number().min(0),
-  folga: z.boolean(),
-})
-
-export type EscalaFormData = z.infer<typeof escalaSchema>
-
 const diasSemana = [
   { value: 0, label: 'Segunda' },
-  { value: 1, label: 'Terça' },
+  { value: 1, label: 'Terca' },
   { value: 2, label: 'Quarta' },
   { value: 3, label: 'Quinta' },
   { value: 4, label: 'Sexta' },
-  { value: 5, label: 'Sábado' },
+  { value: 5, label: 'Sabado' },
   { value: 6, label: 'Domingo' },
 ]
 
@@ -38,30 +39,29 @@ export function EscalaForm({ funcionarioId, onSubmit, initialData, isLoading }: 
     watch,
     formState: { errors },
   } = useForm<EscalaFormData>({
-    resolver: zodResolver(escalaSchema),
-    defaultValues: initialData || {
+    resolver: zodResolver(escalaSchema) as any,
+    defaultValues: (initialData as any) || {
       diaSemana: 0,
       horaInicio: '08:00',
       horaFim: '18:00',
+      horaAlmocoInicio: '12:00',
+      horaAlmocoFim: '13:00',
       horasPrevistas: 8,
       folga: false,
     },
   })
 
   const folga = watch('folga')
-  const horaInicio = watch('horaInicio')
-  const horaFim = watch('horaFim')
+
+  const handleFormSubmit = async (data: any) => {
+    await onSubmit({
+      funcionarioId,
+      ...data,
+    } as CreateEscalaDTO)
+  }
 
   return (
-    <form
-      onSubmit={handleSubmit((data) =>
-        onSubmit({
-          funcionarioId,
-          ...data,
-        })
-      )}
-      className="space-y-4"
-    >
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-slate-700">Dia da Semana *</label>
         <select
@@ -75,7 +75,7 @@ export function EscalaForm({ funcionarioId, onSubmit, initialData, isLoading }: 
           ))}
         </select>
         {errors.diaSemana && (
-          <p className="mt-1 text-sm text-red-600">{errors.diaSemana.message}</p>
+          <p className="mt-1 text-sm text-red-600">{(errors.diaSemana as any).message}</p>
         )}
       </div>
 
@@ -97,19 +97,45 @@ export function EscalaForm({ funcionarioId, onSubmit, initialData, isLoading }: 
                 className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-blue-500 focus:ring-blue-500"
               />
               {errors.horaInicio && (
-                <p className="mt-1 text-sm text-red-600">{errors.horaInicio.message}</p>
+                <p className="mt-1 text-sm text-red-600">{(errors.horaInicio as any).message}</p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700">Saída *</label>
+              <label className="block text-sm font-medium text-slate-700">Saida *</label>
               <input
                 {...register('horaFim')}
                 type="time"
                 className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-blue-500 focus:ring-blue-500"
               />
               {errors.horaFim && (
-                <p className="mt-1 text-sm text-red-600">{errors.horaFim.message}</p>
+                <p className="mt-1 text-sm text-red-600">{(errors.horaFim as any).message}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700">Almoco Inicio</label>
+              <input
+                {...register('horaAlmocoInicio')}
+                type="time"
+                className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-blue-500 focus:ring-blue-500"
+              />
+              {errors.horaAlmocoInicio && (
+                <p className="mt-1 text-sm text-red-600">{(errors.horaAlmocoInicio as any).message}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700">Almoco Fim</label>
+              <input
+                {...register('horaAlmocoFim')}
+                type="time"
+                className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-blue-500 focus:ring-blue-500"
+              />
+              {errors.horaAlmocoFim && (
+                <p className="mt-1 text-sm text-red-600">{(errors.horaAlmocoFim as any).message}</p>
               )}
             </div>
           </div>
@@ -123,7 +149,7 @@ export function EscalaForm({ funcionarioId, onSubmit, initialData, isLoading }: 
               className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-blue-500 focus:ring-blue-500"
             />
             {errors.horasPrevistas && (
-              <p className="mt-1 text-sm text-red-600">{errors.horasPrevistas.message}</p>
+              <p className="mt-1 text-sm text-red-600">{(errors.horasPrevistas as any).message}</p>
             )}
           </div>
         </>

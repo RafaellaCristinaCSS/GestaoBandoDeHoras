@@ -66,7 +66,7 @@ export function FuncionariosPage() {
     setIsModalOpen(true)
   }
 
-  const handleSubmit = (data: FuncionarioFormData) => {
+  const handleSubmit = async (data: any) => {
     if (editingId) {
       updateMutation.mutate({ id: editingId, data })
     } else {

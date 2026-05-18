@@ -12,8 +12,8 @@ export function RegistroPontoPage() {
   const [selectedFuncionarioId, setSelectedFuncionarioId] = useState<number | null>(null)
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [editingField, setEditingField] = useState<string | null>(null)
+  // const [editingId, setEditingId] = useState<number | null>(null)
+  // const [editingField, setEditingField] = useState<string | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   const { data: funcionarios, isLoading: isLoadingFunc } = useQuery({
@@ -30,7 +30,7 @@ export function RegistroPontoPage() {
     enabled: !!selectedFuncionarioId,
   })
 
-  const { data: escalas } = useQuery({
+  const { data: _escalas } = useQuery({
     queryKey: ['escalas', selectedFuncionarioId],
     queryFn: () =>
       selectedFuncionarioId ? escalaService.getByFuncionarioId(selectedFuncionarioId) : Promise.resolve([]),
@@ -44,8 +44,8 @@ export function RegistroPontoPage() {
       queryClient.invalidateQueries({
         queryKey: ['registros-ponto', selectedFuncionarioId, selectedMonth, selectedYear],
       })
-      setEditingId(null)
-      setEditingField(null)
+      // setEditingId(null)
+      // setEditingField(null)
       setToast({ message: 'Atualizado com sucesso!', type: 'success' })
     },
     onError: () => {
@@ -57,9 +57,9 @@ export function RegistroPontoPage() {
     return new Date(year, month, 0).getDate()
   }
 
-  const formatDate = (year: number, month: number, day: number) => {
-    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-  }
+  // const formatDate = (year: number, month: number, day: number) => {
+  //   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  // }
 
   const handleCellChange = (registroId: number, field: string, value: string | boolean) => {
     updateMutation.mutate({ id: registroId, field, value })
@@ -67,7 +67,7 @@ export function RegistroPontoPage() {
 
   const selectedFuncionario = funcionarios?.find((f) => f.id === selectedFuncionarioId)
   const daysInMonth = getDaysInMonth(selectedYear, selectedMonth)
-  const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1)
+  // const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1)
 
   if (isLoadingFunc) return <Loading />
 

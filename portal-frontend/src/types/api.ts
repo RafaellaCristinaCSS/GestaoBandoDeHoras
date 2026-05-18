@@ -24,6 +24,8 @@ export interface Escala {
   diaSemana: number
   horaInicio: string
   horaFim: string
+  horaAlmocoInicio?: string
+  horaAlmocoFim?: string
   horasPrevistas: number
   folga: boolean
 }
@@ -33,6 +35,8 @@ export interface CreateEscalaDTO {
   diaSemana: number
   horaInicio: string
   horaFim: string
+  horaAlmocoInicio?: string
+  horaAlmocoFim?: string
   horasPrevistas: number
   folga: boolean
 }

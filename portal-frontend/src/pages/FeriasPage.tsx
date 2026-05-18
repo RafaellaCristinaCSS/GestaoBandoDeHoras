@@ -73,7 +73,7 @@ export function FeriasPage() {
     setIsModalOpen(true)
   }
 
-  const handleSubmit = (data: Ferias) => {
+  const handleSubmit = (data: any) => {
     if (editingId) {
       updateMutation.mutate({ id: editingId, data })
     } else {
@@ -81,7 +81,7 @@ export function FeriasPage() {
     }
   }
 
-  const editingFeria = editingId ? ferias?.find((f) => f.id === editingId) : undefined
+  // const editingFeria = editingId ? ferias?.find((f) => f.id === editingId) : undefined
 
   const closeModal = () => {
     setIsModalOpen(false)

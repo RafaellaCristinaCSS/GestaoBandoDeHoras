@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -25,7 +25,7 @@ export function FeriasForm({ onSubmit, initialData, isLoading }: FeriasFormProps
     handleSubmit,
     formState: { errors },
   } = useForm<FeriasFormData>({
-    resolver: zodResolver(feriasSchema),
+    resolver: zodResolver(feriasSchema) as any,
     defaultValues: initialData || {
       funcionarioId: 0,
       dataInicio: '',
@@ -35,7 +35,7 @@ export function FeriasForm({ onSubmit, initialData, isLoading }: FeriasFormProps
   })
 
   return (
-    <form onSubmit={handleSubmit((data) => onSubmit(data))} className="space-y-4">
+    <form onSubmit={handleSubmit((data) => onSubmit(data as any))} className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-slate-700">Funcionário *</label>
         <select

@@ -180,6 +180,9 @@ export function EscalasPage() {
                       Entrada
                     </th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">
+                      Almoço
+                    </th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">
                       Saída
                     </th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">
@@ -201,6 +204,9 @@ export function EscalasPage() {
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600">
                         {escala.folga ? '-' : escala.horaInicio}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600">
+                        {escala.folga ? '-' : escala.horaAlmocoInicio && escala.horaAlmocoFim ? `${escala.horaAlmocoInicio} - ${escala.horaAlmocoFim}` : '-'}
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600">
                         {escala.folga ? '-' : escala.horaFim}

@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { X } from 'lucide-react'
+
+
 
 import { Funcionario, CreateFuncionarioDTO } from '@/types/api'
 import { Cargo } from '@/types/cargo'
@@ -38,9 +38,9 @@ export function FuncionarioForm({ onSubmit, initialData, isLoading }: Funcionari
     setValue,
     handleSubmit,
     formState: { errors },
-    watch,
+
   } = useForm<FuncionarioFormData>({
-    resolver: zodResolver(funcionarioSchema),
+    resolver: zodResolver(funcionarioSchema) as any,
     defaultValues: initialData || {
       nome: '',
       cargo: '',
@@ -59,7 +59,7 @@ export function FuncionarioForm({ onSubmit, initialData, isLoading }: Funcionari
   };
 
   return (
-    <form onSubmit={handleSubmit((data) => onSubmit(data))} className="space-y-4">
+    <form onSubmit={handleSubmit((data) => onSubmit(data as any))} className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-slate-700">Nome *</label>
         <input

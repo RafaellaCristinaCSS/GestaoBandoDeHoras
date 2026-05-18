@@ -8,6 +8,8 @@ namespace Portal.DTOs
         public int DiaSemana { get; set; }
         public string HoraInicio { get; set; }
         public string HoraFim { get; set; }
+        public string? HoraAlmocoInicio { get; set; }
+        public string? HoraAlmocoFim { get; set; }
         public decimal HorasPrevistas { get; set; }
         public bool Folga { get; set; }
 
@@ -21,6 +23,8 @@ namespace Portal.DTOs
         public int? DiaSemana { get; set; }
         public string? HoraInicio { get; set; }
         public string? HoraFim { get; set; }
+        public string? HoraAlmocoInicio { get; set; }
+        public string? HoraAlmocoFim { get; set; }
         public decimal? HorasPrevistas { get; set; }
         public bool? Folga { get; set; }
 
@@ -34,6 +38,8 @@ namespace Portal.DTOs
         public int DiaSemana { get; set; }
         public string HoraInicio { get; set; }
         public string HoraFim { get; set; }
+        public string? HoraAlmocoInicio { get; set; }
+        public string? HoraAlmocoFim { get; set; }
         public decimal HorasPrevistas { get; set; }
         public bool Folga { get; set; }
 
