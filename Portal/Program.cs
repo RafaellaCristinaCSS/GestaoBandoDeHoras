@@ -40,10 +40,18 @@ builder.Services.AddCors(options =>
                     return true;
                 }
 
+                // GitHub Pages (frontend)
+                if(
+                    uri.Host.Equals("rafaellacristinacss.github.io",StringComparison.OrdinalIgnoreCase)
+                )
+                {
+                    return true;
+                }
+
                 // Railway / produção
                 if(
-                    uri.Host.Contains("railway.app")
-                    || uri.Host.Contains("up.railway.app")
+                    uri.Host.EndsWith(".railway.app",StringComparison.OrdinalIgnoreCase)
+                    || uri.Host.Equals("railway.app",StringComparison.OrdinalIgnoreCase)
                 )
                 {
                     return true;
