@@ -7,10 +7,54 @@ import { escalaService } from '@/services/escalaService'
 import { Loading } from '@/components/Loading'
 import { EmptyState } from '@/components/EmptyState'
 import { Toast } from '@/components/Toast'
+import { Escala, RegistroPonto } from '@/types/api'
 
 const parseLocalDate = (isoDate: string) => {
   const [year, month, day] = isoDate.split('-').map(Number)
   return new Date(year, month - 1, day)
+}
+
+const getEscalaDiaSemana = (data: Date) => (data.getDay() + 6) % 7
+
+const toMinutes = (time?: string) => {
+  if (!time) return null
+
+  const [hours, minutes] = time.split(':').map(Number)
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null
+
+  return hours * 60 + minutes
+}
+
+const getHorasTrabalhadas = (registro: RegistroPonto) => {
+  const entrada = toMinutes(registro.entrada)
+  const saida = toMinutes(registro.saida)
+
+  if (entrada == null || saida == null || saida <= entrada) return null
+
+  let total = saida - entrada
+  const almocoInicio = toMinutes(registro.almocInicio)
+  const almocoFim = toMinutes(registro.almocFim)
+
+  if (
+    almocoInicio != null &&
+    almocoFim != null &&
+    almocoFim > almocoInicio &&
+    almocoInicio >= entrada &&
+    almocoFim <= saida
+  ) {
+    total -= almocoFim - almocoInicio
+  }
+
+  return total / 60
+}
+
+const getHorasPlanejadas = (dataIso: string, escalas: Escala[]) => {
+  const diaSemana = getEscalaDiaSemana(parseLocalDate(dataIso))
+  const escalaDoDia = escalas.find((e) => e.diaSemana === diaSemana)
+
+  if (!escalaDoDia || escalaDoDia.folga) return null
+
+  return escalaDoDia.horasPrevistas
 }
 
 export function RegistroPontoPage() {
@@ -36,7 +80,7 @@ export function RegistroPontoPage() {
     enabled: !!selectedFuncionarioId,
   })
 
-  const { data: _escalas } = useQuery({
+  const { data: escalas } = useQuery({
     queryKey: ['escalas', selectedFuncionarioId],
     queryFn: () =>
       selectedFuncionarioId ? escalaService.getByFuncionarioId(selectedFuncionarioId) : Promise.resolve([]),
@@ -173,11 +217,20 @@ export function RegistroPontoPage() {
                     <th className="px-4 py-3 text-left font-semibold text-slate-900">Saída</th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-900">Presença</th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-900">Status</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-900">Horas</th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-900">Obs.</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {registros.map((registro) => (
+                  {registros.map((registro) => {
+                    const horasTrabalhadas = getHorasTrabalhadas(registro)
+                    const horasPlanejadas = getHorasPlanejadas(registro.data, escalas ?? [])
+                    const saldoHoras =
+                      horasTrabalhadas != null && horasPlanejadas != null
+                        ? horasTrabalhadas - horasPlanejadas
+                        : null
+
+                    return (
                     <tr key={registro.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3 text-slate-900">
                         {parseLocalDate(registro.data).toLocaleDateString('pt-BR')}
@@ -261,6 +314,23 @@ export function RegistroPontoPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
+                        {saldoHoras == null ? (
+                          <span className="text-xs text-slate-500">-</span>
+                        ) : (
+                          <span
+                            className={`px-2 py-1 rounded text-xs font-semibold ${
+                              saldoHoras < 0
+                                ? 'bg-red-100 text-red-800'
+                                : saldoHoras > 0
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-slate-100 text-slate-700'
+                            }`}
+                          >
+                            {horasTrabalhadas!.toFixed(1)}h / {horasPlanejadas!.toFixed(1)}h
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
                         <input
                           type="text"
                           defaultValue={registro.observacao || ''}
@@ -274,7 +344,7 @@ export function RegistroPontoPage() {
                         />
                       </td>
                     </tr>
-                  ))}
+                  )})}
                 </tbody>
               </table>
             </div>
