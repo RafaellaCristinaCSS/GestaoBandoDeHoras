@@ -16,6 +16,8 @@ export function FuncionariosPage() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; name: string } | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 10
 
   const { data: funcionarios, isLoading, isError } = useQuery({
     queryKey: ['funcionarios'],
@@ -78,6 +80,13 @@ export function FuncionariosPage() {
     ? funcionarios?.find((f) => f.id === editingId)
     : undefined
 
+  const totalPages = Math.max(1, Math.ceil((funcionarios?.length ?? 0) / pageSize))
+  const currentPageSafe = Math.min(currentPage, totalPages)
+  const paginatedFuncionarios = (funcionarios ?? []).slice(
+    (currentPageSafe - 1) * pageSize,
+    currentPageSafe * pageSize
+  )
+
   const closeModal = () => {
     setIsModalOpen(false)
     setEditingId(null)
@@ -121,59 +130,85 @@ export function FuncionariosPage() {
           description="Clique em 'Novo Funcionário' para começar"
         />
       ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-slate-50 border-b">
-              <tr>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Nome</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Cargo</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">
-                  Carga Horária
-                </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Status</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {funcionarios.map((func) => (
-                <tr key={func.id} className="hover:bg-slate-50">
-                  <td className="px-6 py-4 text-sm text-slate-900">{func.nome}</td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{func.cargo}</td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{func.cargaHorariaSemanal}h</td>
-                  <td className="px-6 py-4 text-sm">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        func.ativo
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}
-                    >
-                      {func.ativo ? 'Ativo' : 'Inativo'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => handleEdit(func)}
-                        className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                      >
-                        <Edit2 size={16} />
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirm({ id: func.id, name: func.nome })}
-                        className="text-red-600 hover:text-red-800 flex items-center gap-1"
-                      >
-                        <Trash2 size={16} />
-                        Remover
-                      </button>
-                    </div>
-                  </td>
+        <>
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-slate-50 border-b">
+                <tr>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Nome</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Cargo</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">
+                    Carga Horária
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Status</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Ações</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y">
+                {paginatedFuncionarios.map((func) => (
+                  <tr key={func.id} className="hover:bg-slate-50">
+                    <td className="px-6 py-4 text-sm text-slate-900">{func.nome}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600">{func.cargo}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600">{func.cargaHorariaSemanal}h</td>
+                    <td className="px-6 py-4 text-sm">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          func.ativo
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        {func.ativo ? 'Ativo' : 'Inativo'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => handleEdit(func)}
+                          className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                        >
+                          <Edit2 size={16} />
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirm({ id: func.id, name: func.nome })}
+                          className="text-red-600 hover:text-red-800 flex items-center gap-1"
+                        >
+                          <Trash2 size={16} />
+                          Remover
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between rounded-lg bg-white px-4 py-3 shadow-sm">
+            <p className="text-sm text-slate-600">
+              Página {currentPageSafe} de {totalPages}
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={currentPageSafe === 1}
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Anterior
+              </button>
+              <button
+                type="button"
+                disabled={currentPageSafe === totalPages}
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Próxima
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       <Modal

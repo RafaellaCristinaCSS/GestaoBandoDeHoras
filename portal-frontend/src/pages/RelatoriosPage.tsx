@@ -86,6 +86,10 @@ export function RelatoriosPage() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [isExporting, setIsExporting] = useState(false)
+  const [absencesPage, setAbsencesPage] = useState(1)
+  const [delaysPage, setDelaysPage] = useState(1)
+  const [monthlyPage, setMonthlyPage] = useState(1)
+  const pageSize = 10
 
   const { data: funcionarios, isLoading: isLoadingFunc } = useQuery({
     queryKey: ['funcionarios'],
@@ -195,6 +199,18 @@ export function RelatoriosPage() {
 
   const monthly = reportData ?? []
 
+  const absencesTotalPages = Math.max(1, Math.ceil(absences.length / pageSize))
+  const delaysTotalPages = Math.max(1, Math.ceil(delays.length / pageSize))
+  const monthlyTotalPages = Math.max(1, Math.ceil(monthly.length / pageSize))
+
+  const safeAbsencesPage = Math.min(absencesPage, absencesTotalPages)
+  const safeDelaysPage = Math.min(delaysPage, delaysTotalPages)
+  const safeMonthlyPage = Math.min(monthlyPage, monthlyTotalPages)
+
+  const paginatedAbsences = absences.slice((safeAbsencesPage - 1) * pageSize, safeAbsencesPage * pageSize)
+  const paginatedDelays = delays.slice((safeDelaysPage - 1) * pageSize, safeDelaysPage * pageSize)
+  const paginatedMonthly = monthly.slice((safeMonthlyPage - 1) * pageSize, safeMonthlyPage * pageSize)
+
   const handleExportExcel = async () => {
     if (monthly.length === 0) {
       setToast({ message: 'Nenhum dado para exportar', type: 'error' })
@@ -275,6 +291,37 @@ export function RelatoriosPage() {
   }
 
   if (isLoadingFunc) return <Loading />
+
+  const renderPagination = (
+    currentPage: number,
+    totalPages: number,
+    onPrev: () => void,
+    onNext: () => void
+  ) => (
+    <div className="flex items-center justify-between border-t border-slate-200 px-6 py-4">
+      <p className="text-sm text-slate-600">
+        Página {currentPage} de {totalPages}
+      </p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={currentPage === 1}
+          onClick={onPrev}
+          className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Anterior
+        </button>
+        <button
+          type="button"
+          disabled={currentPage === totalPages}
+          onClick={onNext}
+          className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Próxima
+        </button>
+      </div>
+    </div>
+  )
 
   return (
     <div>
@@ -371,7 +418,8 @@ export function RelatoriosPage() {
               {absences.length === 0 ? (
                 <div className="px-6 py-10 text-sm text-slate-500">Nenhuma falta encontrada no período.</div>
               ) : (
-                <table className="w-full text-sm">
+                <>
+                  <table className="w-full text-sm">
                   <thead className="border-b bg-slate-50">
                     <tr>
                       <th className="px-6 py-3 text-left font-semibold text-slate-900">Funcionário</th>
@@ -380,7 +428,7 @@ export function RelatoriosPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {absences.map((item, index) => (
+                    {paginatedAbsences.map((item, index) => (
                       <tr key={`${item.funcionario}-${item.data}-${index}`} className="hover:bg-red-50">
                         <td className="px-6 py-4 font-medium text-slate-900">{item.funcionario}</td>
                         <td className="px-6 py-4 text-slate-700">
@@ -390,7 +438,14 @@ export function RelatoriosPage() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                  </table>
+                  {renderPagination(
+                    safeAbsencesPage,
+                    absencesTotalPages,
+                    () => setAbsencesPage((page) => Math.max(1, page - 1)),
+                    () => setAbsencesPage((page) => Math.min(absencesTotalPages, page + 1))
+                  )}
+                </>
               )}
             </section>
 
@@ -401,7 +456,8 @@ export function RelatoriosPage() {
               {delays.length === 0 ? (
                 <div className="px-6 py-10 text-sm text-slate-500">Nenhum atraso encontrado no período.</div>
               ) : (
-                <table className="w-full text-sm">
+                <>
+                  <table className="w-full text-sm">
                   <thead className="border-b bg-slate-50">
                     <tr>
                       <th className="px-6 py-3 text-left font-semibold text-slate-900">Funcionário</th>
@@ -417,7 +473,7 @@ export function RelatoriosPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {delays.map((item, index) => (
+                    {paginatedDelays.map((item, index) => (
                       <tr key={`${item.funcionario}-${item.data}-${index}`} className="hover:bg-amber-50">
                         <td className="px-6 py-4 font-medium text-slate-900">{item.funcionario}</td>
                         <td className="px-6 py-4 text-slate-700">
@@ -446,7 +502,14 @@ export function RelatoriosPage() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                  </table>
+                  {renderPagination(
+                    safeDelaysPage,
+                    delaysTotalPages,
+                    () => setDelaysPage((page) => Math.max(1, page - 1)),
+                    () => setDelaysPage((page) => Math.min(delaysTotalPages, page + 1))
+                  )}
+                </>
               )}
             </section>
 
@@ -466,7 +529,7 @@ export function RelatoriosPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {monthly.map((item) => {
+                  {paginatedMonthly.map((item) => {
                     const saldoClass =
                       item.saldoHoras < 0
                         ? 'bg-red-600 text-white'
@@ -491,6 +554,12 @@ export function RelatoriosPage() {
                   })}
                 </tbody>
               </table>
+              {renderPagination(
+                safeMonthlyPage,
+                monthlyTotalPages,
+                () => setMonthlyPage((page) => Math.max(1, page - 1)),
+                () => setMonthlyPage((page) => Math.min(monthlyTotalPages, page + 1))
+              )}
             </section>
           </div>
         </>
