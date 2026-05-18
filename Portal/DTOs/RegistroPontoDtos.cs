@@ -35,7 +35,7 @@ namespace Portal.DTOs
     {
         public int Id { get; set; }
         public int FuncionarioId { get; set; }
-        public DateTime Data { get; set; }
+        public string Data { get; set; }
         public string? Entrada { get; set; }
         public string? AlmocInicio { get; set; }
         public string? AlmocFim { get; set; }

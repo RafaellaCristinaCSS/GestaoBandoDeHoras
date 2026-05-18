@@ -17,10 +17,6 @@ namespace Portal.Services
             if (!e.Presenca)
                 return "Falta";
 
-            if (string.IsNullOrWhiteSpace(e.HoraEntrada) &&
-                string.IsNullOrWhiteSpace(e.HoraSaida))
-                return "Falta";
-
             return "Presente";
         }
 
@@ -30,7 +26,7 @@ namespace Portal.Services
             {
                 Id = e.Id,
                 FuncionarioId = e.FuncionarioId ?? e.RegistroPontoId,
-                Data = e.Data,
+                Data = e.Data.ToString("yyyy-MM-dd"),
                 Entrada = e.HoraEntrada,
                 AlmocInicio = e.HoraAlmocoInicio,
                 AlmocFim = e.HoraAlmocoFim,

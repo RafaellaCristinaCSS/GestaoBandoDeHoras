@@ -172,9 +172,11 @@ export function RegistroPontoPage() {
                 <tbody className="divide-y">
                   {registros.map((registro) => (
                     <tr key={registro.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 text-slate-900">{registro.data}</td>
+                      <td className="px-4 py-3 text-slate-900">
+                        {new Date(registro.data).toLocaleDateString('pt-BR')}
+                      </td>
                       <td className="px-4 py-3 text-slate-600">
-                        {new Date(registro.data + 'T00:00:00').toLocaleString('pt-BR', {
+                        {new Date(registro.data).toLocaleString('pt-BR', {
                           weekday: 'short',
                         })}
                       </td>
