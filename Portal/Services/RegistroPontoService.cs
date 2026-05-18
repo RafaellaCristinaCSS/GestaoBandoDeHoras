@@ -11,6 +11,22 @@ namespace Portal.Services
     public class RegistroPontoService : IRegistroPontoService
     {
         private readonly IRegistroPontoRepository _repository;
+        private readonly IEscalaRepository _escalaRepository;
+
+        private static int GetEscalaDiaSemana(DateTime data)
+    => ((int)data.DayOfWeek + 6) % 7;
+        private static void ApplyEscala(RegistroPonto registro, Escala? escala)
+        {
+            if (escala == null || escala.Folga)
+            {
+                return;
+            }
+
+            registro.HoraEntrada = string.IsNullOrWhiteSpace(registro.HoraEntrada) ? escala.HoraInicio : registro.HoraEntrada;
+            registro.HoraAlmocoInicio = string.IsNullOrWhiteSpace(registro.HoraAlmocoInicio) ? (escala.HoraAlmocoInicio ?? string.Empty) : registro.HoraAlmocoInicio;
+            registro.HoraAlmocoFim = string.IsNullOrWhiteSpace(registro.HoraAlmocoFim) ? (escala.HoraAlmocoFim ?? string.Empty) : registro.HoraAlmocoFim;
+            registro.HoraSaida = string.IsNullOrWhiteSpace(registro.HoraSaida) ? escala.HoraFim : registro.HoraSaida;
+        }
 
         private static string BuildStatus(RegistroPonto e)
         {
@@ -43,9 +59,10 @@ namespace Portal.Services
             };
         }
 
-        public RegistroPontoService(IRegistroPontoRepository repository)
+        public RegistroPontoService(IRegistroPontoRepository repository, IEscalaRepository escalaRepository)
         {
             _repository = repository;
+            _escalaRepository = escalaRepository;
         }
 
         public async Task<IEnumerable<RegistroPontoReadDto>> GetAllAsync(int? funcionarioId = null, int? mes = null, int? ano = null)
@@ -53,6 +70,7 @@ namespace Portal.Services
             if (funcionarioId.HasValue && mes.HasValue && ano.HasValue)
             {
                 var registrosMes = (await _repository.GetFilteredAsync(funcionarioId, mes, ano)).ToList();
+                var escalas = (await _escalaRepository.GetByFuncionarioIdAsync(funcionarioId.Value)).ToList();
                 var dataInicio = new DateTime(ano.Value,mes.Value,1).AddMonths(-1).AddDays(20);
 
                 var dataFim = new DateTime(ano.Value,mes.Value,1).AddDays(21);
@@ -86,6 +104,10 @@ namespace Portal.Services
                         Excluded = false
                     };
 
+                    var diaSemana = GetEscalaDiaSemana(data);
+                    var escalaDoDia = escalas.FirstOrDefault(e => !e.Excluded && e.DiaSemana == diaSemana.ToString());
+                    ApplyEscala(novo, escalaDoDia);
+
                     await _repository.AddAsync(novo);
                 }
 
@@ -108,6 +130,10 @@ namespace Portal.Services
         {
             if (dto.FuncionarioId <= 0) throw new Exception("FuncionarioId é obrigatório!");
 
+            var escalas = (await _escalaRepository.GetByFuncionarioIdAsync(dto.FuncionarioId)).ToList();
+            var diaSemana = GetEscalaDiaSemana(dto.Data);
+            var escalaDoDia = escalas.FirstOrDefault(e => !e.Excluded && e.DiaSemana == diaSemana.ToString());
+
             var entity = new RegistroPonto();
 
             // atribuição de campos
@@ -121,13 +147,19 @@ namespace Portal.Services
             entity.Presenca = dto.Presenca;
             entity.Observacao = dto.Observacao ?? string.Empty;
 
+            ApplyEscala(entity, escalaDoDia);
+
             entity.StartDate = DateTime.UtcNow;
             entity.Excluded = false;
 
             await _repository.AddAsync(entity);
             await _repository.SaveChangesAsync();
 
-            return await GetByIdAsync(entity.Id)!;
+            var created = await GetByIdAsync(entity.Id);
+            if (created == null)
+                throw new Exception("Falha ao recuperar o registro de ponto criado.");
+
+            return created;
         }
 
         public async Task<bool> UpdateAsync(int id, RegistroPontoUpdateDto dto)

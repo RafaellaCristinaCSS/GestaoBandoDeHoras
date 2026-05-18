@@ -7,6 +7,11 @@ import { Loading } from '@/components/Loading'
 import { EmptyState } from '@/components/EmptyState'
 import { Toast } from '@/components/Toast'
 
+const parseLocalDate = (isoDate: string) => {
+  const [year, month, day] = isoDate.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
 export function RegistroPontoPage() {
   const queryClient = useQueryClient()
   const [selectedFuncionarioId, setSelectedFuncionarioId] = useState<number | null>(null)
@@ -173,10 +178,10 @@ export function RegistroPontoPage() {
                   {registros.map((registro) => (
                     <tr key={registro.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3 text-slate-900">
-                        {new Date(registro.data).toLocaleDateString('pt-BR')}
+                        {parseLocalDate(registro.data).toLocaleDateString('pt-BR')}
                       </td>
                       <td className="px-4 py-3 text-slate-600">
-                        {new Date(registro.data).toLocaleString('pt-BR', {
+                        {parseLocalDate(registro.data).toLocaleString('pt-BR', {
                           weekday: 'short',
                         })}
                       </td>

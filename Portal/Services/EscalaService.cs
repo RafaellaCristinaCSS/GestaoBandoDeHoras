@@ -163,7 +163,9 @@ namespace Portal.Services
                 new Escala { EscalaId = funcionarioId, FuncionarioId = funcionarioId, DiaSemana = "1", HoraInicio = "07:00", HoraFim = "17:00", HoraAlmocoInicio = "12:00", HoraAlmocoFim = "13:00", HorasPrevistas = 9, Folga = false, StartDate = DateTime.UtcNow, Excluded = false }, // Terça
                 new Escala { EscalaId = funcionarioId, FuncionarioId = funcionarioId, DiaSemana = "2", HoraInicio = "07:00", HoraFim = "17:00", HoraAlmocoInicio = "12:00", HoraAlmocoFim = "13:00", HorasPrevistas = 9, Folga = false, StartDate = DateTime.UtcNow, Excluded = false }, // Quarta
                 new Escala { EscalaId = funcionarioId, FuncionarioId = funcionarioId, DiaSemana = "3", HoraInicio = "07:00", HoraFim = "17:00", HoraAlmocoInicio = "12:00", HoraAlmocoFim = "13:00", HorasPrevistas = 9, Folga = false, StartDate = DateTime.UtcNow, Excluded = false }, // Quinta
-                new Escala { EscalaId = funcionarioId, FuncionarioId = funcionarioId, DiaSemana = "4", HoraInicio = "07:00", HoraFim = "16:00", HoraAlmocoInicio = "12:00", HoraAlmocoFim = "13:00", HorasPrevistas = 8, Folga = false, StartDate = DateTime.UtcNow, Excluded = false }  // Sexta
+                new Escala { EscalaId = funcionarioId, FuncionarioId = funcionarioId, DiaSemana = "4", HoraInicio = "07:00", HoraFim = "16:00", HoraAlmocoInicio = "12:00", HoraAlmocoFim = "13:00", HorasPrevistas = 8, Folga = false, StartDate = DateTime.UtcNow, Excluded = false }, // Sexta
+                new Escala { EscalaId = funcionarioId, FuncionarioId = funcionarioId, DiaSemana = "5", HoraInicio = "00:00", HoraFim = "00:00", HoraAlmocoInicio = "00:00", HoraAlmocoFim = "00:00", HorasPrevistas = 0, Folga = true, StartDate = DateTime.UtcNow, Excluded = false }, // Sábado
+                new Escala { EscalaId = funcionarioId, FuncionarioId = funcionarioId, DiaSemana = "6", HoraInicio = "00:00", HoraFim = "00:00", HoraAlmocoInicio = "00:00", HoraAlmocoFim = "00:00", HorasPrevistas = 0, Folga = true, StartDate = DateTime.UtcNow, Excluded = false }  // Domingo
             };
 
             foreach (var escala in escalas)
