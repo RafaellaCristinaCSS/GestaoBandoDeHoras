@@ -26,13 +26,6 @@ const toMinutes = (time?: string) => {
   return hours * 60 + minutes
 }
 
-const formatMinutes = (minutes: number) => {
-  const absoluteMinutes = Math.round(Math.abs(minutes))
-  const hours = Math.floor(absoluteMinutes / 60)
-  const remainingMinutes = absoluteMinutes % 60
-  return `${hours}h ${remainingMinutes.toString().padStart(2, '0')}m`
-}
-
 const formatHours = (hours: number) => `${hours.toFixed(1)}h`
 
 const getWorkedHours = (registro: RegistroPonto) => {
@@ -76,6 +69,14 @@ type EmployeeReport = {
     entradaPlanejada?: string
     saidaPlanejada?: string
   }>
+  extras: Array<{
+    registro: RegistroPonto
+    horasPlanejadasDia: number
+    horasCumpridasDia: number
+    saldoHorasDia: number
+    entradaPlanejada?: string
+    saidaPlanejada?: string
+  }>
   horasPlanejadas: number
   horasCumpridas: number
   saldoHoras: number
@@ -88,6 +89,7 @@ export function RelatoriosPage() {
   const [isExporting, setIsExporting] = useState(false)
   const [absencesPage, setAbsencesPage] = useState(1)
   const [delaysPage, setDelaysPage] = useState(1)
+  const [extrasPage, setExtrasPage] = useState(1)
   const [monthlyPage, setMonthlyPage] = useState(1)
   const pageSize = 10
 
@@ -142,6 +144,32 @@ export function RelatoriosPage() {
             })
             .filter((item): item is NonNullable<typeof item> => item !== null)
 
+          const extras = registros
+            .map((registro) => {
+              const escalaDoDia = findEscalaDoDia(escalas, registro.data)
+              if (!escalaDoDia) return null
+
+              if (!registro.presenca) return null
+
+              const horasPlanejadasDia = escalaDoDia.horasPrevistas
+              const horasCumpridasDia = getWorkedHours(registro)
+              const saldoHorasDia = horasCumpridasDia - horasPlanejadasDia
+
+              if (saldoHorasDia <= 0) {
+                return null
+              }
+
+              return {
+                registro,
+                horasPlanejadasDia,
+                horasCumpridasDia,
+                saldoHorasDia,
+                entradaPlanejada: escalaDoDia.horaInicio,
+                saidaPlanejada: escalaDoDia.horaFim,
+              }
+            })
+            .filter((item): item is NonNullable<typeof item> => item !== null)
+
           const totals = registros.reduce(
             (acc, registro) => {
               const escalaDoDia = findEscalaDoDia(escalas, registro.data)
@@ -161,6 +189,7 @@ export function RelatoriosPage() {
             escalas,
             faltas,
             atrasos,
+            extras,
             horasPlanejadas: totals.horasPlanejadas,
             horasCumpridas: totals.horasCumpridas,
             saldoHoras: totals.horasCumpridas - totals.horasPlanejadas,
@@ -197,19 +226,40 @@ export function RelatoriosPage() {
       }))
     ) ?? []
 
+  const extras =
+    reportData?.flatMap((item) =>
+      item.extras.map((extra) => ({
+        funcionario: item.funcionario.nome,
+        data: extra.registro.data,
+        entradaPlanejada: extra.entradaPlanejada || '-',
+        entradaReal: extra.registro.entrada || '-',
+        saidaPlanejada: extra.saidaPlanejada || '-',
+        saidaReal: extra.registro.saida || '-',
+        horasPlanejadasDia: extra.horasPlanejadasDia,
+        horasCumpridasDia: extra.horasCumpridasDia,
+        saldoHorasDia: extra.saldoHorasDia,
+        observacao: extra.registro.observacao || '-',
+      }))
+    ) ?? []
+
   const monthly = reportData ?? []
 
   const absencesTotalPages = Math.max(1, Math.ceil(absences.length / pageSize))
   const delaysTotalPages = Math.max(1, Math.ceil(delays.length / pageSize))
+  const extrasTotalPages = Math.max(1, Math.ceil(extras.length / pageSize))
   const monthlyTotalPages = Math.max(1, Math.ceil(monthly.length / pageSize))
 
   const safeAbsencesPage = Math.min(absencesPage, absencesTotalPages)
   const safeDelaysPage = Math.min(delaysPage, delaysTotalPages)
+  const safeExtrasPage = Math.min(extrasPage, extrasTotalPages)
   const safeMonthlyPage = Math.min(monthlyPage, monthlyTotalPages)
 
   const paginatedAbsences = absences.slice((safeAbsencesPage - 1) * pageSize, safeAbsencesPage * pageSize)
   const paginatedDelays = delays.slice((safeDelaysPage - 1) * pageSize, safeDelaysPage * pageSize)
+  const paginatedExtras = extras.slice((safeExtrasPage - 1) * pageSize, safeExtrasPage * pageSize)
   const paginatedMonthly = monthly.slice((safeMonthlyPage - 1) * pageSize, safeMonthlyPage * pageSize)
+
+  const totalHorasExtras = extras.reduce((acc, item) => acc + item.saldoHorasDia, 0)
 
   const handleExportExcel = async () => {
     if (monthly.length === 0) {
@@ -403,9 +453,9 @@ export function RelatoriosPage() {
               <div className="mt-2 text-3xl font-black text-slate-900">{monthly.length}</div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="text-sm font-semibold text-slate-600">Horas planejadas</div>
+              <div className="text-sm font-semibold text-slate-600">Horas extras</div>
               <div className="mt-2 text-3xl font-black text-slate-900">
-                {formatHours(monthly.reduce((acc, item) => acc + item.horasPlanejadas, 0))}
+                {formatHours(totalHorasExtras)}
               </div>
             </div>
           </div>
@@ -508,6 +558,70 @@ export function RelatoriosPage() {
                     delaysTotalPages,
                     () => setDelaysPage((page) => Math.max(1, page - 1)),
                     () => setDelaysPage((page) => Math.min(delaysTotalPages, page + 1))
+                  )}
+                </>
+              )}
+            </section>
+
+            <section className="overflow-hidden rounded-xl bg-white shadow">
+              <div className="border-b border-slate-200 px-6 py-4">
+                <h2 className="text-xl font-bold text-slate-900">Horas extras</h2>
+              </div>
+              {extras.length === 0 ? (
+                <div className="px-6 py-10 text-sm text-slate-500">Nenhuma hora extra encontrada no período.</div>
+              ) : (
+                <>
+                  <table className="w-full text-sm">
+                    <thead className="border-b bg-slate-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Funcionário</th>
+                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Dia</th>
+                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Entrada planejada</th>
+                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Entrada real</th>
+                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Saída planejada</th>
+                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Saída real</th>
+                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Horas planejadas</th>
+                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Horas cumpridas</th>
+                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Horas extras</th>
+                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Observação</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {paginatedExtras.map((item, index) => (
+                        <tr key={`${item.funcionario}-${item.data}-${index}`} className="hover:bg-amber-50">
+                          <td className="px-6 py-4 font-medium text-slate-900">{item.funcionario}</td>
+                          <td className="px-6 py-4 text-slate-700">
+                            {parseLocalDate(item.data).toLocaleDateString('pt-BR')}
+                          </td>
+                          <td className="px-6 py-4 text-slate-700">{item.entradaPlanejada}</td>
+                          <td className="px-6 py-4 text-slate-700">{item.entradaReal}</td>
+                          <td className="px-6 py-4 text-slate-700">{item.saidaPlanejada}</td>
+                          <td className="px-6 py-4 text-slate-700">{item.saidaReal}</td>
+                          <td className="px-6 py-4">
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-900 shadow-sm">
+                              {formatHours(item.horasPlanejadasDia)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-900 shadow-sm">
+                              {formatHours(item.horasCumpridasDia)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="rounded-full bg-amber-400 px-3 py-1 text-xs font-black text-slate-900 shadow-sm">
+                              {formatHours(item.saldoHorasDia)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-slate-700">{item.observacao}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {renderPagination(
+                    safeExtrasPage,
+                    extrasTotalPages,
+                    () => setExtrasPage((page) => Math.max(1, page - 1)),
+                    () => setExtrasPage((page) => Math.min(extrasTotalPages, page + 1))
                   )}
                 </>
               )}
