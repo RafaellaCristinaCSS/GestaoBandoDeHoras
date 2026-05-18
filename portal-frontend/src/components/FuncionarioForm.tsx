@@ -44,7 +44,7 @@ export function FuncionarioForm({ onSubmit, initialData, isLoading }: Funcionari
     defaultValues: initialData || {
       nome: '',
       cargo: '',
-      cargaHorariaSemanal: 40,
+      cargaHorariaSemanal: 44,
       ativo: true,
     },
   });
@@ -128,7 +128,7 @@ export function FuncionarioForm({ onSubmit, initialData, isLoading }: Funcionari
           type="number"
           step="0.5"
           className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-500 focus:border-blue-500 focus:ring-blue-500"
-          placeholder="40"
+          placeholder="44"
         />
         {errors.cargaHorariaSemanal && (
           <p className="mt-1 text-sm text-red-600">{errors.cargaHorariaSemanal.message}</p>
