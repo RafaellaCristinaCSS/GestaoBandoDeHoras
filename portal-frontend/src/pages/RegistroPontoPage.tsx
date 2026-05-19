@@ -105,9 +105,12 @@ export function RegistroPontoPage() {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Record<string, string | boolean> }) =>
       registroPontoService.update(id, data as any),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
         queryKey: ['registros-ponto', selectedFuncionarioId, selectedMonth, selectedYear],
+      })
+      await queryClient.invalidateQueries({
+        queryKey: ['relatorio-geral'],
       })
       // setEditingId(null)
       // setEditingField(null)
