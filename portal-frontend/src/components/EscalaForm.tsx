@@ -17,7 +17,7 @@ const detalheSchema = z.object({
 })
 
 const escalaSchema = z.object({
-  nome: z.string().min(1, 'Nome Ã© obrigatÃ³rio'),
+  nome: z.string().min(1, 'Nome é obrigatório'),
   descricao: z.string().optional(),
   cargaHorariaSemanal: z.coerce.number().min(0),
   tipoEscala: z.coerce.number(),
@@ -30,7 +30,7 @@ const escalaSchema = z.object({
 export type EscalaFormData = z.infer<typeof escalaSchema>
 
 const diasSemana = [
-  'Segunda', 'TerÃ§a', 'Quarta', 'Quinta', 'Sexta', 'SÃ¡bado', 'Domingo',
+  'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo',
 ]
 
 const criarDetalhesSemanaisPadrao = () => diasSemana.map((_, i) => ({
@@ -149,7 +149,7 @@ export function EscalaForm({ onSubmit, initialData, isLoading }: EscalaFormProps
         </div>
 
         <div className="col-span-2">
-          <label className="block text-sm font-medium text-slate-700">DescriÃ§Ã£o</label>
+          <label className="block text-sm font-medium text-slate-700">Descrição</label>
           <input
             {...register('descricao')}
             className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-blue-500"
@@ -167,7 +167,7 @@ export function EscalaForm({ onSubmit, initialData, isLoading }: EscalaFormProps
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-700">Carga horÃ¡ria semanal (h)</label>
+          <label className="block text-sm font-medium text-slate-700">Carga horária semanal (h)</label>
           <input
             {...register('cargaHorariaSemanal')}
             type="number"
@@ -176,7 +176,7 @@ export function EscalaForm({ onSubmit, initialData, isLoading }: EscalaFormProps
           />
           {isDoze36 && (
             <p className="mt-1 text-xs text-slate-500">
-              Em 12x36, a carga Ã© calculada automaticamente ({cargaHorariaDoze36}h/semana).
+              Em 12x36, a carga é calculada automaticamente ({cargaHorariaDoze36}h/semana).
             </p>
           )}
         </div>

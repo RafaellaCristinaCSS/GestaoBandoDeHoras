@@ -13,7 +13,7 @@ import { EscalaForm, EscalaFormData } from '@/components/EscalaForm'
 import { useToast } from '@/contexts/ToastContext'
 import { Escala, TipoEscala, TurnoEscala, CreateFuncionarioEscalaDTO } from '@/types/api'
 
-const diasSemana = ['Segunda', 'TerÃ§a', 'Quarta', 'Quinta', 'Sexta', 'SÃ¡bado', 'Domingo']
+const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo']
 
 const formatDateForInput = (date: Date) => {
   const year = date.getFullYear()
@@ -255,7 +255,7 @@ export function EscalasPage() {
       {!escalas || escalas.length === 0 ? (
         <EmptyState
           title="Nenhuma escala cadastrada"
-          description="Crie escalas centralizadas e atribua aos funcionÃ¡rios"
+          description="Crie escalas centralizadas e atribua aos funcionários"
         />
       ) : (
         <div className="space-y-3">
@@ -272,7 +272,7 @@ export function EscalasPage() {
                   <div>
                     <p className="font-semibold text-slate-900">{escala.nome}</p>
                     <p className="text-sm text-slate-500">
-                      {tipoEscalaLabel[escala.tipoEscala]} Â· {escala.cargaHorariaSemanal}h/semana
+                      {tipoEscalaLabel[escala.tipoEscala]} · {escala.cargaHorariaSemanal}h/semana
                       {!escala.ativa && <span className="ml-2 text-red-500">(inativa)</span>}
                     </p>
                   </div>
@@ -310,15 +310,15 @@ export function EscalasPage() {
               {expandedEscalaId === escala.id && (
                 <div className="border-t px-6 py-4">
                   {escala.detalhes.length === 0 ? (
-                    <p className="text-sm text-slate-500">Nenhum horÃ¡rio configurado.</p>
+                    <p className="text-sm text-slate-500">Nenhum horário configurado.</p>
                   ) : (
                     <table className="w-full text-sm">
                       <thead className="bg-slate-50">
                         <tr>
                           <th className="px-3 py-2 text-left text-slate-600">Dia</th>
                           <th className="px-3 py-2 text-left text-slate-600">Entrada</th>
-                          <th className="px-3 py-2 text-left text-slate-600">AlmoÃ§o</th>
-                          <th className="px-3 py-2 text-left text-slate-600">SaÃ­da</th>
+                          <th className="px-3 py-2 text-left text-slate-600">Almoço</th>
+                          <th className="px-3 py-2 text-left text-slate-600">Saída</th>
                           <th className="px-3 py-2 text-left text-slate-600">Horas</th>
                           <th className="px-3 py-2 text-left text-slate-600">Folga</th>
                         </tr>
@@ -337,7 +337,7 @@ export function EscalasPage() {
                               <td className="px-3 py-2 text-slate-600">{d.folga ? '-' : `${d.horasPrevistas}h`}</td>
                               <td className="px-3 py-2">
                                 <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${d.folga ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>
-                                  {d.folga ? 'Sim' : 'NÃ£o'}
+                                  {d.folga ? 'Sim' : 'Não'}
                                 </span>
                               </td>
                             </tr>
@@ -366,7 +366,7 @@ export function EscalasPage() {
         />
       </Modal>
 
-      {/* Modal atribuir escala a funcionÃ¡rio */}
+      {/* Modal atribuir escala a funcionário */}
       <Modal
         isOpen={isAtribuirModalOpen}
         onClose={() => {
@@ -375,22 +375,22 @@ export function EscalasPage() {
           setAtribuirDataInicio(formatDateForInput(getCompetenciaAtualInicio()))
           setTrabalhaDiaPar(null)
         }}
-        title="Atribuir Escala ao FuncionÃ¡rio"
+        title="Atribuir Escala ao Funcionário"
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">FuncionÃ¡rio *</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Funcionário *</label>
             <Select
               options={funcionarioOptions}
               isClearable
               isSearchable
-              placeholder="Selecione o funcionÃ¡rio..."
-              noOptionsMessage={() => 'Nenhum funcionÃ¡rio encontrado'}
+              placeholder="Selecione o funcionário..."
+              noOptionsMessage={() => 'Nenhum funcionário encontrado'}
               onChange={opt => setAtribuirFuncionarioId(opt?.value ?? null)}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Data de inÃ­cio *</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Data de início *</label>
             <input
               type="date"
               value={atribuirDataInicio}
@@ -424,7 +424,7 @@ export function EscalasPage() {
                     checked={trabalhaDiaPar === false}
                     onChange={() => setTrabalhaDiaPar(false)}
                   />
-                  Trabalha em dias impares
+                  Trabalha em dias ímpares
                 </label>
               </div>
             </div>
@@ -451,7 +451,7 @@ export function EscalasPage() {
         <ConfirmDialog
           isOpen
           title="Desativar escala"
-          message="Tem certeza que deseja desativar essa escala? Ela nÃ£o ficarÃ¡ mais disponÃ­vel para novas atribuiÃ§Ãµes."
+          message="Tem certeza que deseja desativar essa escala? Ela não ficará mais disponível para novas atribuições."
           onConfirm={() => deleteMutation.mutate(deleteConfirm)}
           onCancel={() => setDeleteConfirm(null)}
         />
