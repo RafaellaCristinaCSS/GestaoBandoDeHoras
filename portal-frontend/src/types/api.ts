@@ -53,6 +53,7 @@ export interface Escala {
   descricao?: string
   cargaHorariaSemanal: number
   tipoEscala: TipoEscala
+  trabalhaDiaParPadrao?: boolean
   ativa: boolean
   createdAt: string
   detalhes: EscalaDetalhe[]
@@ -63,6 +64,7 @@ export interface CreateEscalaDTO {
   descricao?: string
   cargaHorariaSemanal: number
   tipoEscala: TipoEscala
+  trabalhaDiaParPadrao?: boolean
   ativa: boolean
   detalhes: CreateEscalaDetalheDTO[]
 }
@@ -72,6 +74,7 @@ export interface UpdateEscalaDTO {
   descricao?: string
   cargaHorariaSemanal?: number
   tipoEscala?: TipoEscala
+  trabalhaDiaParPadrao?: boolean
   ativa?: boolean
 }
 

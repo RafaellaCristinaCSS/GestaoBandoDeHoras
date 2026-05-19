@@ -40,7 +40,7 @@ namespace Portal.Services
                     .OrderBy(d => d.DiaSemana)
                     .FirstOrDefault(d => !d.Folga) ?? escala.Detalhes.First();
 
-                var trabalhaDiaPar = vinculo?.TrabalhaDiaPar;
+                var trabalhaDiaPar = vinculo?.TrabalhaDiaPar ?? escala.TrabalhaDiaParPadrao;
                 if (!trabalhaDiaPar.HasValue)
                     return detalheTrabalho;
 
@@ -77,7 +77,7 @@ namespace Portal.Services
                     .OrderBy(d => d.DiaSemana)
                     .FirstOrDefault(d => !d.Folga) ?? registro.Escala.Detalhes.First();
 
-                var trabalhaDiaPar = registro.FuncionarioEscalaVinculo?.TrabalhaDiaPar;
+                var trabalhaDiaPar = registro.FuncionarioEscalaVinculo?.TrabalhaDiaPar ?? registro.Escala.TrabalhaDiaParPadrao;
                 if (!trabalhaDiaPar.HasValue)
                     return detalheTrabalho;
 

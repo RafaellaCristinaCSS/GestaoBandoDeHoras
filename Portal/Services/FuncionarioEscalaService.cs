@@ -55,7 +55,9 @@ namespace Portal.Services
             if (escala == null)
                 throw new ArgumentException("Escala não encontrada.");
 
-            if (escala.TipoEscala == TipoEscala.Doze36 && !dto.TrabalhaDiaPar.HasValue)
+            var trabalhaDiaPar = dto.TrabalhaDiaPar ?? escala.TrabalhaDiaParPadrao;
+
+            if (escala.TipoEscala == TipoEscala.Doze36 && !trabalhaDiaPar.HasValue)
                 throw new ArgumentException("Para escala 12x36, é obrigatório informar se o funcionário trabalha em dias pares ou ímpares.");
 
             // Fechar o vínculo atual (se existir)
@@ -72,7 +74,7 @@ namespace Portal.Services
                 EscalaId = dto.EscalaId,
                 DataInicio = dto.DataInicio,
                 DataFim = null,
-                TrabalhaDiaPar = escala.TipoEscala == TipoEscala.Doze36 ? dto.TrabalhaDiaPar : null,
+                TrabalhaDiaPar = escala.TipoEscala == TipoEscala.Doze36 ? trabalhaDiaPar : null,
                 CreatedByUserId = dto.CreatedByUserId,
                 CreatedAt = DateTime.UtcNow
             };

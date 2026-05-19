@@ -32,6 +32,12 @@ namespace Portal.Models
 
         public TipoEscala TipoEscala { get; set; } = TipoEscala.Semanal;
 
+        /// <summary>
+        /// Para escala 12x36, define o padrão da escala: trabalha em dias pares (true)
+        /// ou ímpares (false). Pode ser sobrescrito no vínculo com o funcionário.
+        /// </summary>
+        public bool? TrabalhaDiaParPadrao { get; set; }
+
         public bool Ativa { get; set; } = true;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

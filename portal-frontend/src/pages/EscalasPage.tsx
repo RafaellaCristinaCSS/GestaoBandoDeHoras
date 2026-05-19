@@ -69,6 +69,7 @@ export function EscalasPage() {
         descricao: data.descricao,
         cargaHorariaSemanal: data.cargaHorariaSemanal,
         tipoEscala: data.tipoEscala,
+        trabalhaDiaParPadrao: data.trabalhaDiaParPadrao ?? undefined,
         ativa: data.ativa,
       }),
     onSuccess: () => {
@@ -173,7 +174,11 @@ export function EscalasPage() {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => { setAtribuirEscalaId(escala.id); setIsAtribuirModalOpen(true) }}
+                    onClick={() => {
+                      setAtribuirEscalaId(escala.id)
+                      setTrabalhaDiaPar(escala.tipoEscala === TipoEscala.Doze36 ? escala.trabalhaDiaParPadrao ?? null : null)
+                      setIsAtribuirModalOpen(true)
+                    }}
                     className="flex items-center gap-1 text-green-600 hover:text-green-800 text-sm"
                   >
                     <Users size={16} />

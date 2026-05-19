@@ -1,8 +1,8 @@
-* Auditoria ALTA
-* login ALTA
-* escalas 12/36 ALTA (validar)
+* escalas 12/36 ALTA ok
+* Cargo precisa virar uma tabela ALTA ok
+
+
 * adicionar feriados ALTA (validar)
-* Cargo precisa virar uma tabela ALTA (validar)
 * escala precisa ser considerada ALTA (validar)
 * atalho para editar novo funcionario ALTA
 * escala pode nao ser vinculada ao funcionario, ser uma lista, 44h/s seg a sexta, 44h/s seg a sabado, 12/36, 40h/s segunda a sexta, escala personalizada ALTA (validar) 
@@ -13,6 +13,8 @@
 * pesquisar cargos MEDIA(validar)
 * mensagem de erro e sucesso sem ser ocupando a tela MEDIA (validar)
 * Alterar os termos da planilha: Entrada planejada	Entrada real	Saída planejada	Saída real	Horas planejadas	Horas cumpridas Media (validar) 
+* Auditoria ALTA
+* login ALTA
 * cadastro BAIXA
 * permitir anexar atestado BAIXA
 * poder adicionar mais de 4 intervalor BAIXA

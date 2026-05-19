@@ -1,7 +1,7 @@
-﻿import { useFieldArray, useForm } from 'react-hook-form'
+﻿import { useEffect, useMemo } from 'react'
+import { useFieldArray, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { Plus, Trash2 } from 'lucide-react'
 import { Escala, TipoEscala } from '@/types/api'
 
 const detalheSchema = z.object({
@@ -19,6 +19,7 @@ const escalaSchema = z.object({
   descricao: z.string().optional(),
   cargaHorariaSemanal: z.coerce.number().min(0),
   tipoEscala: z.coerce.number(),
+  trabalhaDiaParPadrao: z.boolean().nullable().optional(),
   ativa: z.boolean(),
   detalhes: z.array(detalheSchema),
 })
@@ -29,6 +30,33 @@ const diasSemana = [
   'Segunda', 'TerÃ§a', 'Quarta', 'Quinta', 'Sexta', 'SÃ¡bado', 'Domingo',
 ]
 
+const criarDetalhesSemanaisPadrao = () => diasSemana.map((_, i) => ({
+  diaSemana: i,
+  horaInicio: i < 4 ? '08:00' : i === 4 ? '08:00' : '00:00',
+  horaFim: i < 4 ? '18:00' : i === 4 ? '17:00' : '00:00',
+  horaAlmocoInicio: i < 5 ? '12:00' : '',
+  horaAlmocoFim: i < 5 ? '13:00' : '',
+  horasPrevistas: i < 4 ? 9 : i === 4 ? 8 : 0,
+  folga: i >= 5,
+}))
+
+const criarDetalhesDoze36 = (trabalhaDiaParPadrao?: boolean | null) =>
+  diasSemana.map((_, index) => {
+    const diaNumero = index + 1
+    const diaPar = diaNumero % 2 === 0
+    const trabalhaNesseDia = trabalhaDiaParPadrao == null ? !diaPar : trabalhaDiaParPadrao ? diaPar : !diaPar
+
+    return {
+      diaSemana: index,
+      horaInicio: trabalhaNesseDia ? '07:00' : '00:00',
+      horaFim: trabalhaNesseDia ? '19:00' : '00:00',
+      horaAlmocoInicio: '',
+      horaAlmocoFim: '',
+      horasPrevistas: trabalhaNesseDia ? 12 : 0,
+      folga: !trabalhaNesseDia,
+    }
+  })
+
 interface EscalaFormProps {
   onSubmit: (data: EscalaFormData) => Promise<void>
   initialData?: Escala
@@ -36,7 +64,7 @@ interface EscalaFormProps {
 }
 
 export function EscalaForm({ onSubmit, initialData, isLoading }: EscalaFormProps) {
-  const { register, handleSubmit, control, watch, formState: { errors } } = useForm<EscalaFormData>({
+  const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<EscalaFormData>({
     resolver: zodResolver(escalaSchema) as any,
     defaultValues: initialData
       ? {
@@ -44,6 +72,7 @@ export function EscalaForm({ onSubmit, initialData, isLoading }: EscalaFormProps
           descricao: initialData.descricao ?? '',
           cargaHorariaSemanal: initialData.cargaHorariaSemanal,
           tipoEscala: initialData.tipoEscala,
+          trabalhaDiaParPadrao: initialData.trabalhaDiaParPadrao ?? null,
           ativa: initialData.ativa,
           detalhes: initialData.detalhes.map(d => ({
             diaSemana: d.diaSemana,
@@ -60,22 +89,33 @@ export function EscalaForm({ onSubmit, initialData, isLoading }: EscalaFormProps
           descricao: '',
           cargaHorariaSemanal: 44,
           tipoEscala: TipoEscala.Semanal,
+          trabalhaDiaParPadrao: null,
           ativa: true,
-          detalhes: diasSemana.map((_, i) => ({
-            diaSemana: i,
-            horaInicio: i < 5 ? '08:00' : '00:00',
-            horaFim: i < 5 ? '18:00' : '00:00',
-            horaAlmocoInicio: i < 5 ? '12:00' : '',
-            horaAlmocoFim: i < 5 ? '13:00' : '',
-            horasPrevistas: i < 5 ? 8 : 0,
-            folga: i >= 5,
-          })),
+          detalhes: criarDetalhesSemanaisPadrao(),
         },
   })
 
   const { fields } = useFieldArray({ control, name: 'detalhes' })
 
+  const tipoEscala = Number(watch('tipoEscala'))
+  const trabalhaDiaParPadrao = watch('trabalhaDiaParPadrao')
   const detalhes = watch('detalhes')
+  const isDoze36 = tipoEscala === TipoEscala.Doze36
+
+  const cargaHorariaDoze36 = useMemo(() => {
+    const detalheTrabalho = detalhes?.find((d) => !d.folga && d.horasPrevistas > 0)
+    const horasTurno = detalheTrabalho?.horasPrevistas ?? 12
+    return Number((horasTurno * 3.5).toFixed(1))
+  }, [detalhes])
+
+  useEffect(() => {
+    if (isDoze36) {
+      setValue('cargaHorariaSemanal', cargaHorariaDoze36, { shouldValidate: true })
+      setValue('detalhes', criarDetalhesDoze36(trabalhaDiaParPadrao), { shouldValidate: true })
+    } else if (trabalhaDiaParPadrao != null) {
+      setValue('trabalhaDiaParPadrao', null, { shouldValidate: true })
+    }
+  }, [isDoze36, cargaHorariaDoze36, trabalhaDiaParPadrao, setValue])
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -103,8 +143,14 @@ export function EscalaForm({ onSubmit, initialData, isLoading }: EscalaFormProps
           <input
             {...register('cargaHorariaSemanal')}
             type="number"
-            className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-blue-500"
+            disabled={isDoze36}
+            className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-500"
           />
+          {isDoze36 && (
+            <p className="mt-1 text-xs text-slate-500">
+              Em 12x36, a carga Ã© calculada automaticamente ({cargaHorariaDoze36}h/semana).
+            </p>
+          )}
         </div>
 
         <div>
@@ -119,87 +165,116 @@ export function EscalaForm({ onSubmit, initialData, isLoading }: EscalaFormProps
           </select>
         </div>
 
+        {isDoze36 && (
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Padrão 12x36</label>
+            <div className="flex gap-4">
+              <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="radio"
+                  name="trabalhaDiaParPadrao"
+                  checked={trabalhaDiaParPadrao === true}
+                  onChange={() => setValue('trabalhaDiaParPadrao', true, { shouldValidate: true })}
+                />
+                Par
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="radio"
+                  name="trabalhaDiaParPadrao"
+                  checked={trabalhaDiaParPadrao === false}
+                  onChange={() => setValue('trabalhaDiaParPadrao', false, { shouldValidate: true })}
+                />
+                Ímpar
+              </label>
+            </div>
+          </div>
+        )}
+
         <div className="col-span-2 flex items-center gap-2">
           <input {...register('ativa')} type="checkbox" className="rounded border-slate-300" />
           <label className="text-sm font-medium text-slate-700">Escala ativa</label>
         </div>
+
       </div>
 
-      <div>
-        <h3 className="text-sm font-semibold text-slate-700 mb-2">HorÃ¡rios por dia</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="px-3 py-2 text-left text-slate-600">Dia</th>
-                <th className="px-3 py-2 text-left text-slate-600">Folga</th>
-                <th className="px-3 py-2 text-left text-slate-600">Entrada</th>
-                <th className="px-3 py-2 text-left text-slate-600">SaÃ­da</th>
-                <th className="px-3 py-2 text-left text-slate-600">Alm. inÃ­cio</th>
-                <th className="px-3 py-2 text-left text-slate-600">Alm. fim</th>
-                <th className="px-3 py-2 text-left text-slate-600">Horas</th>
-              </tr>
-            </thead>
-            <tbody>
-              {fields.map((field, index) => {
-                const isFolga = detalhes?.[index]?.folga
-                return (
-                  <tr key={field.id} className="border-t">
-                    <td className="px-3 py-2 font-medium text-slate-700">
-                      {diasSemana[detalhes?.[index]?.diaSemana ?? index]}
-                      <input type="hidden" {...register(`detalhes.${index}.diaSemana`)} />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input {...register(`detalhes.${index}.folga`)} type="checkbox" />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        {...register(`detalhes.${index}.horaInicio`)}
-                        type="time"
-                        disabled={isFolga}
-                        className="w-28 rounded border border-slate-300 px-2 py-1 disabled:bg-slate-100"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        {...register(`detalhes.${index}.horaFim`)}
-                        type="time"
-                        disabled={isFolga}
-                        className="w-28 rounded border border-slate-300 px-2 py-1 disabled:bg-slate-100"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        {...register(`detalhes.${index}.horaAlmocoInicio`)}
-                        type="time"
-                        disabled={isFolga}
-                        className="w-28 rounded border border-slate-300 px-2 py-1 disabled:bg-slate-100"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        {...register(`detalhes.${index}.horaAlmocoFim`)}
-                        type="time"
-                        disabled={isFolga}
-                        className="w-28 rounded border border-slate-300 px-2 py-1 disabled:bg-slate-100"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        {...register(`detalhes.${index}.horasPrevistas`)}
-                        type="number"
-                        step="0.5"
-                        disabled={isFolga}
-                        className="w-16 rounded border border-slate-300 px-2 py-1 disabled:bg-slate-100"
-                      />
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+      {!isDoze36 && (
+        <div>
+          <h3 className="text-sm font-semibold text-slate-700 mb-2">Horários por dia</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="px-3 py-2 text-left text-slate-600">Dia</th>
+                  <th className="px-3 py-2 text-left text-slate-600">Folga</th>
+                  <th className="px-3 py-2 text-left text-slate-600">Entrada</th>
+                  <th className="px-3 py-2 text-left text-slate-600">Saída</th>
+                  <th className="px-3 py-2 text-left text-slate-600">Alm. início</th>
+                  <th className="px-3 py-2 text-left text-slate-600">Alm. fim</th>
+                  <th className="px-3 py-2 text-left text-slate-600">Horas</th>
+                </tr>
+              </thead>
+              <tbody>
+                {fields.map((field, index) => {
+                  const isFolga = detalhes?.[index]?.folga
+                  return (
+                    <tr key={field.id} className="border-t">
+                      <td className="px-3 py-2 font-medium text-slate-700">
+                        {diasSemana[detalhes?.[index]?.diaSemana ?? index]}
+                        <input type="hidden" {...register(`detalhes.${index}.diaSemana`)} />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input {...register(`detalhes.${index}.folga`)} type="checkbox" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          {...register(`detalhes.${index}.horaInicio`)}
+                          type="time"
+                          disabled={isFolga}
+                          className="w-28 rounded border border-slate-300 px-2 py-1 disabled:bg-slate-100"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          {...register(`detalhes.${index}.horaFim`)}
+                          type="time"
+                          disabled={isFolga}
+                          className="w-28 rounded border border-slate-300 px-2 py-1 disabled:bg-slate-100"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          {...register(`detalhes.${index}.horaAlmocoInicio`)}
+                          type="time"
+                          disabled={isFolga}
+                          className="w-28 rounded border border-slate-300 px-2 py-1 disabled:bg-slate-100"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          {...register(`detalhes.${index}.horaAlmocoFim`)}
+                          type="time"
+                          disabled={isFolga}
+                          className="w-28 rounded border border-slate-300 px-2 py-1 disabled:bg-slate-100"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          {...register(`detalhes.${index}.horasPrevistas`)}
+                          type="number"
+                          step="0.5"
+                          disabled={isFolga}
+                          className="w-16 rounded border border-slate-300 px-2 py-1 disabled:bg-slate-100"
+                        />
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="flex justify-end">
         <button

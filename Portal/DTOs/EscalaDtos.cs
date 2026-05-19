@@ -12,6 +12,7 @@ namespace Portal.DTOs
         public string? Descricao { get; set; }
         public decimal CargaHorariaSemanal { get; set; }
         public TipoEscala TipoEscala { get; set; } = TipoEscala.Semanal;
+        public bool? TrabalhaDiaParPadrao { get; set; }
         public bool Ativa { get; set; } = true;
         public List<EscalaDetalheCreateDto> Detalhes { get; set; } = new();
     }
@@ -22,6 +23,7 @@ namespace Portal.DTOs
         public string? Descricao { get; set; }
         public decimal? CargaHorariaSemanal { get; set; }
         public TipoEscala? TipoEscala { get; set; }
+        public bool? TrabalhaDiaParPadrao { get; set; }
         public bool? Ativa { get; set; }
     }
 
@@ -32,6 +34,7 @@ namespace Portal.DTOs
         public string? Descricao { get; set; }
         public decimal CargaHorariaSemanal { get; set; }
         public TipoEscala TipoEscala { get; set; }
+        public bool? TrabalhaDiaParPadrao { get; set; }
         public bool Ativa { get; set; }
         public DateTime CreatedAt { get; set; }
         public List<EscalaDetalheReadDto> Detalhes { get; set; } = new();
