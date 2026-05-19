@@ -85,7 +85,6 @@ type EmployeeReport = {
 type ExportSections = {
   faltas: boolean
   atrasos: boolean
-  horasGerais: boolean
   horasExtras: boolean
 }
 
@@ -97,13 +96,11 @@ export function RelatoriosPage() {
   const [exportSections, setExportSections] = useState<ExportSections>({
     faltas: true,
     atrasos: true,
-    horasGerais: true,
     horasExtras: true,
   })
   const [absencesPage, setAbsencesPage] = useState(1)
   const [delaysPage, setDelaysPage] = useState(1)
   const [extrasPage, setExtrasPage] = useState(1)
-  const [monthlyPage, setMonthlyPage] = useState(1)
   const pageSize = 10
 
   const { data: funcionarios, isLoading: isLoadingFunc } = useQuery({
@@ -273,17 +270,14 @@ export function RelatoriosPage() {
   const absencesTotalPages = Math.max(1, Math.ceil(absences.length / pageSize))
   const delaysTotalPages = Math.max(1, Math.ceil(delays.length / pageSize))
   const extrasTotalPages = Math.max(1, Math.ceil(extras.length / pageSize))
-  const monthlyTotalPages = Math.max(1, Math.ceil(monthly.length / pageSize))
 
   const safeAbsencesPage = Math.min(absencesPage, absencesTotalPages)
   const safeDelaysPage = Math.min(delaysPage, delaysTotalPages)
   const safeExtrasPage = Math.min(extrasPage, extrasTotalPages)
-  const safeMonthlyPage = Math.min(monthlyPage, monthlyTotalPages)
 
   const paginatedAbsences = absences.slice((safeAbsencesPage - 1) * pageSize, safeAbsencesPage * pageSize)
   const paginatedDelays = delays.slice((safeDelaysPage - 1) * pageSize, safeDelaysPage * pageSize)
   const paginatedExtras = extras.slice((safeExtrasPage - 1) * pageSize, safeExtrasPage * pageSize)
-  const paginatedMonthly = monthly.slice((safeMonthlyPage - 1) * pageSize, safeMonthlyPage * pageSize)
 
   const totalHorasExtras = extras.reduce((acc, item) => acc + item.saldoHorasDia, 0)
 
@@ -466,22 +460,6 @@ export function RelatoriosPage() {
         )
       }
 
-      if (exportSections.horasGerais) {
-        appendSection(
-          'Horas gerais',
-          ['Funcionário', 'Horas planejadas', 'Horas cumpridas', 'Saldo', 'Faltas', 'Atrasos'],
-          monthly.map((item) => [
-            item.funcionario.nome,
-            item.horasPlanejadas,
-            item.horasCumpridas,
-            item.saldoHoras,
-            item.faltas.length,
-            item.atrasos.length,
-          ]),
-          { saldoColumnIndex: 3 }
-        )
-      }
-
       if (exportSections.horasExtras) {
         appendSection(
           'Horas extras',
@@ -638,15 +616,6 @@ export function RelatoriosPage() {
                 />
                 Horas extras
               </label>
-              <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  className="rounded border-slate-300"
-                  checked={exportSections.horasGerais}
-                  onChange={(e) => setExportSections((prev) => ({ ...prev, horasGerais: e.target.checked }))}
-                />
-                Horas gerais
-              </label>
             </div>
           </div>
         </div>
@@ -657,7 +626,7 @@ export function RelatoriosPage() {
       ) : monthly.length === 0 ? (
         <EmptyState
           title="Nenhum dado para o relatório"
-          description="Cadastre funcionários, escalas e registros para visualizar faltas, atrasos e horas mensais."
+          description="Cadastre funcionários, escalas e registros para visualizar faltas, atrasos e horas extras."
         />
       ) : (
         <>
@@ -846,55 +815,6 @@ export function RelatoriosPage() {
                     () => setExtrasPage((page) => Math.min(extrasTotalPages, page + 1))
                   )}
                 </>
-              )}
-            </section>
-
-            <section className="overflow-hidden rounded-xl bg-white shadow">
-              <div className="border-b border-slate-200 px-6 py-4">
-                <h2 className="text-xl font-bold text-slate-900">Horas mensais</h2>
-              </div>
-              <table className="w-full text-sm">
-                <thead className="border-b bg-slate-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left font-semibold text-slate-900">Funcionário</th>
-                    <th className="px-6 py-3 text-left font-semibold text-slate-900">Horas planejadas</th>
-                    <th className="px-6 py-3 text-left font-semibold text-slate-900">Horas cumpridas</th>
-                    <th className="px-6 py-3 text-left font-semibold text-slate-900">Saldo</th>
-                    <th className="px-6 py-3 text-left font-semibold text-slate-900">Faltas</th>
-                    <th className="px-6 py-3 text-left font-semibold text-slate-900">Atrasos</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {paginatedMonthly.map((item) => {
-                    const saldoClass =
-                      item.saldoHoras < 0
-                        ? 'bg-red-600 text-white'
-                        : item.saldoHoras > 0
-                          ? 'bg-amber-400 text-slate-900'
-                          : 'bg-emerald-100 text-emerald-800'
-
-                    return (
-                      <tr key={item.funcionario.id} className="hover:bg-slate-50">
-                        <td className="px-6 py-4 font-medium text-slate-900">{item.funcionario.nome}</td>
-                        <td className="px-6 py-4 text-slate-700">{formatHours(item.horasPlanejadas)}</td>
-                        <td className="px-6 py-4 text-slate-700">{formatHours(item.horasCumpridas)}</td>
-                        <td className="px-6 py-4">
-                          <span className={`rounded-full px-3 py-1 text-xs font-black shadow-sm ${saldoClass}`}>
-                            {item.saldoHoras >= 0 ? '+' : ''}{formatHours(item.saldoHoras)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-slate-700">{item.faltas.length}</td>
-                        <td className="px-6 py-4 text-slate-700">{item.atrasos.length}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-              {renderPagination(
-                safeMonthlyPage,
-                monthlyTotalPages,
-                () => setMonthlyPage((page) => Math.max(1, page - 1)),
-                () => setMonthlyPage((page) => Math.min(monthlyTotalPages, page + 1))
               )}
             </section>
           </div>
