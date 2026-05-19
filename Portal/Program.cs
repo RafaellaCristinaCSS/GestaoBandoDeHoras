@@ -66,6 +66,23 @@ builder.Services.AddCors(options =>
 });
 
 // JWT Authentication
+var jwtKey = builder.Configuration["Jwt:Key"];
+if(string.IsNullOrWhiteSpace(jwtKey))
+{
+    if(builder.Environment.IsDevelopment())
+    {
+        // Chave fallback apenas para desenvolvimento/teste local.
+        jwtKey = "dev-local-jwt-key-change-me-1234567890";
+    }
+    else
+    {
+        throw new InvalidOperationException("Jwt:Key não configurado. Defina Jwt:Key nas configurações de ambiente/produção.");
+    }
+}
+
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "Portal.Local";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "Portal.Local";
+
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -77,11 +94,11 @@ builder.Services
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
 
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Audience"],
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
 
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)
+                Encoding.UTF8.GetBytes(jwtKey)
             )
         };
     });
