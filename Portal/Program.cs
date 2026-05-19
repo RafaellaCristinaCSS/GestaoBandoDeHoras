@@ -246,7 +246,7 @@ static async Task BaselineLegacyDatabaseAsync(
         return;
     }
 
-    await using var connection = dbContext.Database.GetDbConnection();
+    var connection = dbContext.Database.GetDbConnection();
     var shouldCloseConnection = connection.State != ConnectionState.Open;
     if(shouldCloseConnection)
     {
@@ -305,7 +305,7 @@ SELECT
     AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = 'Ferias')
     AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = 'RegistroPonto');";
 
-    await using var connection = dbContext.Database.GetDbConnection();
+    var connection = dbContext.Database.GetDbConnection();
     var shouldCloseConnection = connection.State != ConnectionState.Open;
     if(shouldCloseConnection)
     {
