@@ -5,6 +5,7 @@ using Npgsql;
 using Portal.Data;
 using Portal.Repositories;
 using Portal.Services;
+using System.Data;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -155,7 +156,8 @@ using(var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    dbContext.Database.Migrate();
+    await BaselineLegacyDatabaseAsync(dbContext, app.Logger, app.Lifetime.ApplicationStopping);
+    await dbContext.Database.MigrateAsync(app.Lifetime.ApplicationStopping);
 }
 
 // Swagger
@@ -219,4 +221,110 @@ static string? BuildPostgresConnectionStringFromDatabaseUrl(string? databaseUrl)
     };
 
     return builder.ConnectionString;
+}
+
+static async Task BaselineLegacyDatabaseAsync(
+    AppDbContext dbContext,
+    ILogger logger,
+    CancellationToken cancellationToken)
+{
+    var allMigrations = dbContext.Database.GetMigrations();
+    var initialMigrationId = allMigrations.FirstOrDefault();
+    if(string.IsNullOrWhiteSpace(initialMigrationId))
+    {
+        return;
+    }
+
+    var appliedMigrations = await dbContext.Database.GetAppliedMigrationsAsync(cancellationToken);
+    if(appliedMigrations.Any())
+    {
+        return;
+    }
+
+    if(!await LegacyInitialSchemaExistsAsync(dbContext, cancellationToken))
+    {
+        return;
+    }
+
+    await using var connection = dbContext.Database.GetDbConnection();
+    var shouldCloseConnection = connection.State != ConnectionState.Open;
+    if(shouldCloseConnection)
+    {
+        await connection.OpenAsync(cancellationToken);
+    }
+
+    try
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"
+CREATE TABLE IF NOT EXISTS ""__EFMigrationsHistory"" (
+    ""MigrationId"" character varying(150) NOT NULL,
+    ""ProductVersion"" character varying(32) NOT NULL,
+    CONSTRAINT ""PK___EFMigrationsHistory"" PRIMARY KEY (""MigrationId"")
+);
+
+INSERT INTO ""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
+SELECT @migrationId, @productVersion
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM ""__EFMigrationsHistory""
+    WHERE ""MigrationId"" = @migrationId
+);";
+
+        var migrationParameter = command.CreateParameter();
+        migrationParameter.ParameterName = "@migrationId";
+        migrationParameter.Value = initialMigrationId;
+        command.Parameters.Add(migrationParameter);
+
+        var productVersionParameter = command.CreateParameter();
+        productVersionParameter.ParameterName = "@productVersion";
+        productVersionParameter.Value = typeof(DbContext).Assembly.GetName().Version?.ToString(3) ?? "8.0.0";
+        command.Parameters.Add(productVersionParameter);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+
+        logger.LogWarning(
+            "Banco legado detectado sem __EFMigrationsHistory. Migration inicial {MigrationId} foi registrada antes de aplicar as demais.",
+            initialMigrationId);
+    }
+    finally
+    {
+        if(shouldCloseConnection)
+        {
+            await connection.CloseAsync();
+        }
+    }
+}
+
+static async Task<bool> LegacyInitialSchemaExistsAsync(AppDbContext dbContext, CancellationToken cancellationToken)
+{
+    const string sql = @"
+SELECT
+    EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = 'Funcionario')
+    AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = 'Escala')
+    AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = 'Ferias')
+    AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = 'RegistroPonto');";
+
+    await using var connection = dbContext.Database.GetDbConnection();
+    var shouldCloseConnection = connection.State != ConnectionState.Open;
+    if(shouldCloseConnection)
+    {
+        await connection.OpenAsync(cancellationToken);
+    }
+
+    try
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = sql;
+
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        return result is bool exists && exists;
+    }
+    finally
+    {
+        if(shouldCloseConnection)
+        {
+            await connection.CloseAsync();
+        }
+    }
 }
