@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Edit2 } from 'lucide-react'
 import { funcionarioService } from '@/services/funcionarioService'
+import { registroPontoService } from '@/services/registroPontoService'
 import { Loading } from '@/components/Loading'
 import { EmptyState } from '@/components/EmptyState'
 import { Modal } from '@/components/Modal'
@@ -42,10 +43,31 @@ export function FuncionariosPage() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: FuncionarioFormData }) =>
-      funcionarioService.update(id, data),
+    mutationFn: async ({
+      id,
+      data,
+      regenerarRegistros,
+    }: {
+      id: number
+      data: FuncionarioFormData
+      regenerarRegistros: boolean
+    }) => {
+      await funcionarioService.update(id, data)
+
+      if (!regenerarRegistros) {
+        return
+      }
+
+      const agora = new Date()
+      const mesCompetencia = agora.getMonth() + 1
+      const anoCompetencia = agora.getFullYear()
+
+      // Forca a rotina de preenchimento/reaplicacao da escala para a competencia atual.
+      await registroPontoService.getAll(id, mesCompetencia, anoCompetencia)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['funcionarios'] })
+      queryClient.invalidateQueries({ queryKey: ['registros-ponto'] })
       setIsModalOpen(false)
       setEditingId(null)
       setToast({ message: 'Funcionário atualizado com sucesso!', type: 'success' })
@@ -62,7 +84,15 @@ export function FuncionariosPage() {
 
   const handleSubmit = async (data: any) => {
     if (editingId) {
-      updateMutation.mutate({ id: editingId, data })
+      const funcionarioAntesDaEdicao = funcionarios?.find((funcionario) => funcionario.id === editingId)
+      const estavaSemEscala = !funcionarioAntesDaEdicao?.escalaId
+      const possuiEscalaNoEnvio = Boolean(data.escalaId)
+
+      updateMutation.mutate({
+        id: editingId,
+        data,
+        regenerarRegistros: estavaSemEscala && possuiEscalaNoEnvio,
+      })
     } else {
       createMutation.mutate(data)
     }

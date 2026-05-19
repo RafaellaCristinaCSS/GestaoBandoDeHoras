@@ -65,7 +65,8 @@ export function FuncionarioForm({ onSubmit, initialData, isLoading }: Funcionari
   })
 
   const possuiRegistros = Boolean(registrosFuncionario && registrosFuncionario.length > 0)
-  const bloquearEdicaoEscala = isEditing && possuiRegistros
+  const possuiEscalaAtual = Boolean(initialData?.escalaId)
+  const bloquearEdicaoEscala = isEditing && possuiRegistros && possuiEscalaAtual
 
   const createCargoMutation = useMutation({
     mutationFn: (nome: string) => cargoService.create({ nome }),
