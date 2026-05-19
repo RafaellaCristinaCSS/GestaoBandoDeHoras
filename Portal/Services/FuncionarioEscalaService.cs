@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Portal.DTOs;
 using Portal.Models;
 using Portal.Repositories;
+using Portal.Utils;
 
 namespace Portal.Services
 {
@@ -33,6 +34,14 @@ namespace Portal.Services
             CreatedAt = fe.CreatedAt
         };
 
+        private static DateTime ObterInicioProximaCompetencia(DateTime referencia)
+        {
+            var dataReferencia = referencia.Date;
+            var mesCompetencia = dataReferencia.Day >= 21 ? dataReferencia.AddMonths(1) : dataReferencia;
+            var (_, dataFimCompetencia) = CompetenciaHelper.ObterPeriodoCompetencia(mesCompetencia.Month, mesCompetencia.Year);
+            return dataFimCompetencia.Date.AddDays(1);
+        }
+
         public async Task<IEnumerable<FuncionarioEscalaReadDto>> GetByFuncionarioIdAsync(int funcionarioId)
         {
             var list = await _repository.GetByFuncionarioIdAsync(funcionarioId);
@@ -54,6 +63,14 @@ namespace Portal.Services
             var escala = await _escalaRepository.GetByIdAsync(dto.EscalaId);
             if (escala == null)
                 throw new ArgumentException("Escala não encontrada.");
+
+            var historicoEscalas = (await _repository.GetByFuncionarioIdAsync(dto.FuncionarioId)).ToList();
+            if (historicoEscalas.Any())
+            {
+                var inicioProximaCompetencia = ObterInicioProximaCompetencia(DateTime.UtcNow);
+                if (dto.DataInicio.Date < inicioProximaCompetencia.Date)
+                    throw new ArgumentException($"Funcionários que já possuem escala só podem receber nova escala a partir de {inicioProximaCompetencia:yyyy-MM-dd}.");
+            }
 
             var trabalhaDiaPar = dto.TrabalhaDiaPar ?? escala.TrabalhaDiaParPadrao;
 

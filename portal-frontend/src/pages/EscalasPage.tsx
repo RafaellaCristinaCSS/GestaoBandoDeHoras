@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Trash2, Edit2, Users, ChevronDown, ChevronRight } from 'lucide-react'
 import Select from 'react-select'
@@ -14,6 +14,29 @@ import { useToast } from '@/contexts/ToastContext'
 import { Escala, TipoEscala, CreateFuncionarioEscalaDTO } from '@/types/api'
 
 const diasSemana = ['Segunda', 'TerÃ§a', 'Quarta', 'Quinta', 'Sexta', 'SÃ¡bado', 'Domingo']
+
+const formatDateForInput = (date: Date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const getCompetenciaAtualInicio = (reference = new Date()) => {
+  const year = reference.getFullYear()
+  const month = reference.getMonth()
+
+  if (reference.getDate() >= 21) {
+    return new Date(year, month, 21)
+  }
+
+  return new Date(year, month - 1, 21)
+}
+
+const getProximaCompetenciaInicio = (reference = new Date()) => {
+  const competenciaAtualInicio = getCompetenciaAtualInicio(reference)
+  return new Date(competenciaAtualInicio.getFullYear(), competenciaAtualInicio.getMonth() + 1, 21)
+}
 
 const tipoEscalaLabel: Record<number, string> = {
   [TipoEscala.Semanal]: 'Semanal',
@@ -31,7 +54,7 @@ export function EscalasPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
   const [atribuirEscalaId, setAtribuirEscalaId] = useState<number | null>(null)
   const [atribuirFuncionarioId, setAtribuirFuncionarioId] = useState<number | null>(null)
-  const [atribuirDataInicio, setAtribuirDataInicio] = useState<string>(new Date().toISOString().slice(0, 10))
+  const [atribuirDataInicio, setAtribuirDataInicio] = useState<string>(formatDateForInput(getCompetenciaAtualInicio()))
   const [trabalhaDiaPar, setTrabalhaDiaPar] = useState<boolean | null>(null)
 
   const { data: escalas, isLoading } = useQuery({
@@ -44,10 +67,33 @@ export function EscalasPage() {
     queryFn: funcionarioService.getAll,
   })
 
+  const { data: historicoEscalasFuncionario } = useQuery({
+    queryKey: ['funcionario-escalas', atribuirFuncionarioId],
+    queryFn: () => funcionarioEscalaService.getByFuncionarioId(atribuirFuncionarioId!),
+    enabled: isAtribuirModalOpen && !!atribuirFuncionarioId,
+  })
+
+  useEffect(() => {
+    if (!isAtribuirModalOpen || !atribuirFuncionarioId) {
+      return
+    }
+
+    if (!historicoEscalasFuncionario) {
+      return
+    }
+
+    const dataSugerida = historicoEscalasFuncionario.length === 0
+      ? getCompetenciaAtualInicio()
+      : getProximaCompetenciaInicio()
+
+    setAtribuirDataInicio(formatDateForInput(dataSugerida))
+  }, [isAtribuirModalOpen, atribuirFuncionarioId, historicoEscalasFuncionario])
+
   const createMutation = useMutation({
     mutationFn: (data: EscalaFormData) =>
       escalaService.create({
         ...data,
+        trabalhaDiaParPadrao: data.trabalhaDiaParPadrao ?? undefined,
         detalhes: data.detalhes.map(d => ({
           ...d,
           horaInicio: d.horaInicio ?? '',
@@ -98,10 +144,16 @@ export function EscalasPage() {
       setIsAtribuirModalOpen(false)
       setAtribuirEscalaId(null)
       setAtribuirFuncionarioId(null)
+      setAtribuirDataInicio(formatDateForInput(getCompetenciaAtualInicio()))
       setTrabalhaDiaPar(null)
       showToast('Escala atribuída com sucesso!', 'success')
     },
-    onError: () => showToast('Erro ao atribuir escala', 'error'),
+    onError: (error: any) => {
+      const message = typeof error?.response?.data === 'string'
+        ? error.response.data
+        : 'Erro ao atribuir escala'
+      showToast(message, 'error')
+    },
   })
 
   const handleSubmit = async (data: EscalaFormData) => {
@@ -176,6 +228,7 @@ export function EscalasPage() {
                   <button
                     onClick={() => {
                       setAtribuirEscalaId(escala.id)
+                      setAtribuirDataInicio(formatDateForInput(getCompetenciaAtualInicio()))
                       setTrabalhaDiaPar(escala.tipoEscala === TipoEscala.Doze36 ? escala.trabalhaDiaParPadrao ?? null : null)
                       setIsAtribuirModalOpen(true)
                     }}
@@ -263,7 +316,12 @@ export function EscalasPage() {
       {/* Modal atribuir escala a funcionÃ¡rio */}
       <Modal
         isOpen={isAtribuirModalOpen}
-        onClose={() => { setIsAtribuirModalOpen(false); setAtribuirFuncionarioId(null); setTrabalhaDiaPar(null) }}
+        onClose={() => {
+          setIsAtribuirModalOpen(false)
+          setAtribuirFuncionarioId(null)
+          setAtribuirDataInicio(formatDateForInput(getCompetenciaAtualInicio()))
+          setTrabalhaDiaPar(null)
+        }}
         title="Atribuir Escala ao FuncionÃ¡rio"
       >
         <div className="space-y-4">
@@ -284,8 +342,14 @@ export function EscalasPage() {
               type="date"
               value={atribuirDataInicio}
               onChange={e => setAtribuirDataInicio(e.target.value)}
+              min={historicoEscalasFuncionario && historicoEscalasFuncionario.length > 0 ? formatDateForInput(getProximaCompetenciaInicio()) : undefined}
               className="block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-blue-500"
             />
+            <p className="mt-1 text-xs text-slate-500">
+              {historicoEscalasFuncionario && historicoEscalasFuncionario.length > 0
+                ? `Funcionário com escala já vinculada: nova atribuição a partir de ${formatDateForInput(getProximaCompetenciaInicio())}.`
+                : `Primeira escala do funcionário: pode iniciar na competência atual, desde ${formatDateForInput(getCompetenciaAtualInicio())}.`}
+            </p>
           </div>
           {escalas?.find(e => e.id === atribuirEscalaId)?.tipoEscala === TipoEscala.Doze36 && (
             <div>

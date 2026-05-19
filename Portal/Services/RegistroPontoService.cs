@@ -256,6 +256,19 @@ namespace Portal.Services
                 if (registro.Feriado || !registro.Presenca || HasMarcacaoReal(registro))
                     continue;
 
+                if ((!registro.EscalaId.HasValue || !registro.FuncionarioEscalaId.HasValue)
+                    && registro.FuncionarioId.HasValue)
+                {
+                    var vincEscala = await _funcionarioEscalaRepository.GetWithEscalaAtDateAsync(registro.FuncionarioId.Value, registro.Data);
+                    if (vincEscala != null)
+                    {
+                        registro.EscalaId = vincEscala.EscalaId;
+                        registro.FuncionarioEscalaId = vincEscala.Id;
+                        registro.Escala = vincEscala.Escala;
+                        registro.FuncionarioEscalaVinculo = vincEscala;
+                    }
+                }
+
                 var detalhe = ResolveDetalheParaRegistro(registro);
                 if (detalhe == null || detalhe.Folga)
                     continue;

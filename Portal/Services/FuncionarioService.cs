@@ -7,6 +7,7 @@ using Portal.Models;
 using Portal.Enums;
 using Portal.Data;
 using Portal.Repositories;
+using Portal.Utils;
 
 namespace Portal.Services
 {
@@ -27,6 +28,14 @@ namespace Portal.Services
             _funcionarioEscalaRepository = funcionarioEscalaRepository;
             _escalaRepository = escalaRepository;
             _context = context;
+        }
+
+        private static DateTime ObterInicioCompetenciaAtual(DateTime referencia)
+        {
+            var dataReferencia = referencia.Date;
+            var mesCompetencia = dataReferencia.Day >= 21 ? dataReferencia.AddMonths(1) : dataReferencia;
+            var (dataInicio, _) = CompetenciaHelper.ObterPeriodoCompetencia(mesCompetencia.Month, mesCompetencia.Year);
+            return dataInicio.Date;
         }
 
         private async Task<FuncionarioReadDto> ToReadDtoAsync(Funcionario entity)
@@ -94,11 +103,13 @@ namespace Portal.Services
             await _repository.AddAsync(entity);
             await _repository.SaveChangesAsync();
 
+            var inicioCompetenciaAtual = ObterInicioCompetenciaAtual(DateTime.UtcNow);
+
             await _funcionarioEscalaRepository.AddAsync(new FuncionarioEscala
             {
                 FuncionarioId = entity.Id,
                 EscalaId = escala.Id,
-                DataInicio = DateTime.UtcNow.Date,
+                DataInicio = inicioCompetenciaAtual,
                 TrabalhaDiaPar = escala.TipoEscala == TipoEscala.Doze36 ? escala.TrabalhaDiaParPadrao : null,
                 CreatedByUserId = dto.CreatedByUserId
             });
@@ -143,6 +154,7 @@ namespace Portal.Services
             if (novaEscala != null)
             {
                 var hoje = DateTime.UtcNow.Date;
+                var inicioCompetenciaAtual = ObterInicioCompetenciaAtual(DateTime.UtcNow);
 
                 if (escalaAtual == null)
                 {
@@ -150,7 +162,7 @@ namespace Portal.Services
                     {
                         FuncionarioId = entity.Id,
                         EscalaId = novaEscala.Id,
-                        DataInicio = hoje,
+                        DataInicio = inicioCompetenciaAtual,
                         TrabalhaDiaPar = novaEscala.TipoEscala == TipoEscala.Doze36 ? novaEscala.TrabalhaDiaParPadrao : null,
                         CreatedByUserId = dto.UpdatedByUserId ?? 0
                     });

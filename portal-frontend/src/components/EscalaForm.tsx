@@ -32,8 +32,8 @@ const diasSemana = [
 
 const criarDetalhesSemanaisPadrao = () => diasSemana.map((_, i) => ({
   diaSemana: i,
-  horaInicio: i < 4 ? '08:00' : i === 4 ? '08:00' : '00:00',
-  horaFim: i < 4 ? '18:00' : i === 4 ? '17:00' : '00:00',
+  horaInicio: i < 5 ? '07:00' : '00:00',
+  horaFim: i < 4 ? '17:00' : i === 4 ? '16:00' : '00:00',
   horaAlmocoInicio: i < 5 ? '12:00' : '',
   horaAlmocoFim: i < 5 ? '13:00' : '',
   horasPrevistas: i < 4 ? 9 : i === 4 ? 8 : 0,
