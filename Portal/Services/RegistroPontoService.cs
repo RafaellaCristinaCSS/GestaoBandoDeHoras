@@ -17,6 +17,46 @@ namespace Portal.Services
         private static int GetEscalaDiaSemana(DateTime data)
             => ((int)data.DayOfWeek + 6) % 7;
 
+        private static EscalaDetalhe NormalizeDoze36Detalhe(EscalaDetalhe detalhe)
+        {
+            if (detalhe.Folga)
+                return detalhe;
+
+            if (!TimeOnly.TryParse(detalhe.HoraInicio, out var horaInicio)
+                || !TimeOnly.TryParse(detalhe.HoraFim, out var horaFim)
+                || horaFim <= horaInicio)
+                return detalhe;
+
+            var minutosTrabalho = (int)(horaFim - horaInicio).TotalMinutes;
+
+            if (TimeOnly.TryParse(detalhe.HoraAlmocoInicio, out var horaAlmocoInicio)
+                && TimeOnly.TryParse(detalhe.HoraAlmocoFim, out var horaAlmocoFim)
+                && horaAlmocoFim > horaAlmocoInicio)
+            {
+                minutosTrabalho -= (int)(horaAlmocoFim - horaAlmocoInicio).TotalMinutes;
+            }
+
+            return new EscalaDetalhe
+            {
+                Id = detalhe.Id,
+                EscalaId = detalhe.EscalaId,
+                Escala = detalhe.Escala,
+                DiaSemana = detalhe.DiaSemana,
+                HoraInicio = detalhe.HoraInicio,
+                HoraFim = detalhe.HoraFim,
+                HoraAlmocoInicio = detalhe.HoraAlmocoInicio,
+                HoraAlmocoFim = detalhe.HoraAlmocoFim,
+                HorasPrevistas = minutosTrabalho > 0 ? minutosTrabalho / 60m : 0,
+                Folga = detalhe.Folga
+            };
+        }
+
+        private static bool HasMarcacaoReal(RegistroPonto registro)
+            => !string.IsNullOrWhiteSpace(registro.HoraEntrada)
+                || !string.IsNullOrWhiteSpace(registro.HoraAlmocoInicio)
+                || !string.IsNullOrWhiteSpace(registro.HoraAlmocoFim)
+                || !string.IsNullOrWhiteSpace(registro.HoraSaida);
+
         private static void ApplyEscala(RegistroPonto registro, EscalaDetalhe? detalhe)
         {
             if (detalhe == null || detalhe.Folga)
@@ -59,7 +99,7 @@ namespace Portal.Services
                     };
                 }
 
-                return detalheTrabalho;
+                return NormalizeDoze36Detalhe(detalheTrabalho);
             }
 
             var diaSemana = GetEscalaDiaSemana(data);
@@ -96,7 +136,7 @@ namespace Portal.Services
                     };
                 }
 
-                return detalheTrabalho;
+                return NormalizeDoze36Detalhe(detalheTrabalho);
             }
 
             var diaSemana = GetEscalaDiaSemana(registro.Data);
@@ -107,6 +147,10 @@ namespace Portal.Services
         {
             if (e.Feriado)
                 return "Feriado";
+
+            var detalhe = ResolveDetalheParaRegistro(e);
+            if (detalhe?.Folga == true && !HasMarcacaoReal(e))
+                return "Folga";
 
             if (!e.Presenca)
                 return "Falta";
@@ -204,7 +248,38 @@ namespace Portal.Services
                 await _repository.SaveChangesAsync();
             }
 
-            var list = await _repository.GetFilteredAsync(funcionarioId, mes, ano);
+            var list = (await _repository.GetFilteredAsync(funcionarioId, mes, ano)).ToList();
+
+            var atualizouRegistrosExistentes = false;
+            foreach (var registro in list)
+            {
+                if (registro.Feriado || !registro.Presenca || HasMarcacaoReal(registro))
+                    continue;
+
+                var detalhe = ResolveDetalheParaRegistro(registro);
+                if (detalhe == null || detalhe.Folga)
+                    continue;
+
+                var entradaAnterior = registro.HoraEntrada;
+                var almocoInicioAnterior = registro.HoraAlmocoInicio;
+                var almocoFimAnterior = registro.HoraAlmocoFim;
+                var saidaAnterior = registro.HoraSaida;
+
+                ApplyEscala(registro, detalhe);
+
+                if (registro.HoraEntrada != entradaAnterior
+                    || registro.HoraAlmocoInicio != almocoInicioAnterior
+                    || registro.HoraAlmocoFim != almocoFimAnterior
+                    || registro.HoraSaida != saidaAnterior)
+                {
+                    await _repository.UpdateAsync(registro);
+                    atualizouRegistrosExistentes = true;
+                }
+            }
+
+            if (atualizouRegistrosExistentes)
+                await _repository.SaveChangesAsync();
+
             return list.Select(ToReadDto);
         }
 

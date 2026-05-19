@@ -9,6 +9,7 @@ import Select from 'react-select'
 
 import { Funcionario, CreateFuncionarioDTO } from '@/types/api'
 import { cargoService } from '@/services/cargoService'
+import { escalaService } from '@/services/escalaService'
 
 interface FuncionarioFormProps {
   onSubmit: (data: CreateFuncionarioDTO) => Promise<void>
@@ -19,7 +20,7 @@ interface FuncionarioFormProps {
 const funcionarioSchema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório'),
   cargo: z.string().min(1, 'Cargo é obrigatório'),
-  cargaHorariaSemanal: z.coerce.number().min(1, 'Carga horária é obrigatória'),
+  escalaId: z.coerce.number().min(1, 'Escala é obrigatória'),
   ativo: z.boolean(),
 })
 
@@ -34,6 +35,11 @@ export function FuncionarioForm({ onSubmit, initialData, isLoading }: Funcionari
   const { data: cargos, isLoading: isLoadingCargos } = useQuery({
     queryKey: ['cargos'],
     queryFn: cargoService.getAll,
+  })
+
+  const { data: escalas, isLoading: isLoadingEscalas } = useQuery({
+    queryKey: ['escalas'],
+    queryFn: escalaService.getAll,
   })
 
   const createCargoMutation = useMutation({
@@ -58,7 +64,7 @@ export function FuncionarioForm({ onSubmit, initialData, isLoading }: Funcionari
     defaultValues: initialData || {
       nome: '',
       cargo: '',
-      cargaHorariaSemanal: 44,
+      escalaId: initialData?.escalaId ?? 0,
       ativo: true,
     },
   });
@@ -73,6 +79,13 @@ export function FuncionarioForm({ onSubmit, initialData, isLoading }: Funcionari
     value: cargo.nome,
     label: cargo.nome,
   }))
+
+  const escalaOptions = (escalas ?? [])
+    .filter((escala) => escala.ativa)
+    .map((escala) => ({
+      value: escala.id,
+      label: `${escala.nome} (${escala.cargaHorariaSemanal}h)`,
+    }))
 
   return (
     <form onSubmit={handleSubmit((data) => onSubmit(data as any))} className="space-y-4">
@@ -148,17 +161,27 @@ export function FuncionarioForm({ onSubmit, initialData, isLoading }: Funcionari
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700">Carga Horária Semanal *</label>
-        <input
-          {...register('cargaHorariaSemanal')}
-          type="number"
-          step="0.5"
-          className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-500 focus:border-blue-500 focus:ring-blue-500"
-          placeholder="44"
-        />
-        {errors.cargaHorariaSemanal && (
-          <p className="mt-1 text-sm text-red-600">{errors.cargaHorariaSemanal.message}</p>
-        )}
+        <label className="block text-sm font-medium text-slate-700">Escala *</label>
+        <div className="mt-1">
+          <Controller
+            name="escalaId"
+            control={control}
+            render={({ field }) => (
+              <Select
+                inputId="escalaId"
+                options={escalaOptions}
+                isClearable
+                isSearchable
+                isLoading={isLoadingEscalas}
+                placeholder="Selecione a escala"
+                noOptionsMessage={() => 'Nenhuma escala ativa encontrada'}
+                value={escalaOptions.find((option) => option.value === field.value) ?? null}
+                onChange={(option) => field.onChange(option?.value ?? 0)}
+              />
+            )}
+          />
+        </div>
+        {errors.escalaId && <p className="mt-1 text-sm text-red-600">{errors.escalaId.message}</p>}
       </div>
 
       <div>

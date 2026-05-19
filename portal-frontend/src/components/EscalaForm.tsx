@@ -50,9 +50,9 @@ const criarDetalhesDoze36 = (trabalhaDiaParPadrao?: boolean | null) =>
       diaSemana: index,
       horaInicio: trabalhaNesseDia ? '07:00' : '00:00',
       horaFim: trabalhaNesseDia ? '19:00' : '00:00',
-      horaAlmocoInicio: '',
-      horaAlmocoFim: '',
-      horasPrevistas: trabalhaNesseDia ? 12 : 0,
+      horaAlmocoInicio: trabalhaNesseDia ? '12:00' : '',
+      horaAlmocoFim: trabalhaNesseDia ? '13:00' : '',
+      horasPrevistas: trabalhaNesseDia ? 11 : 0,
       folga: !trabalhaNesseDia,
     }
   })
@@ -104,7 +104,7 @@ export function EscalaForm({ onSubmit, initialData, isLoading }: EscalaFormProps
 
   const cargaHorariaDoze36 = useMemo(() => {
     const detalheTrabalho = detalhes?.find((d) => !d.folga && d.horasPrevistas > 0)
-    const horasTurno = detalheTrabalho?.horasPrevistas ?? 12
+    const horasTurno = detalheTrabalho?.horasPrevistas ?? 11
     return Number((horasTurno * 3.5).toFixed(1))
   }, [detalhes])
 

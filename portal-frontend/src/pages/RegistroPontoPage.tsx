@@ -3,11 +3,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Select from 'react-select'
 import { funcionarioService } from '@/services/funcionarioService'
 import { registroPontoService } from '@/services/registroPontoService'
-import { escalaService } from '@/services/escalaService'
 import { Loading } from '@/components/Loading'
 import { EmptyState } from '@/components/EmptyState'
 import { Toast } from '@/components/Toast'
-import { Escala, RegistroPonto } from '@/types/api'
+import { RegistroPonto } from '@/types/api'
 
 const parseLocalDate = (isoDate: string) => {
   const [year, month, day] = isoDate.split('-').map(Number)
@@ -24,8 +23,6 @@ const isToday = (isoDate: string) => {
     data.getDate() === hoje.getDate()
   )
 }
-
-const getEscalaDiaSemana = (data: Date) => (data.getDay() + 6) % 7
 
 const toMinutes = (time?: string) => {
   if (!time) return null
@@ -59,16 +56,41 @@ const getHorasTrabalhadas = (registro: RegistroPonto) => {
   return total / 60
 }
 
-const getHorasPlanejadas = (registro: RegistroPonto, escalas: Escala[]) => {
-  if (registro.status === 'Feriado') return 0
+const getHorasPlanejadas = (registro: RegistroPonto) => (registro.status === 'Feriado' ? 0 : registro.horasPrevistas ?? null)
 
-  const dataIso = registro.data
-  const diaSemana = getEscalaDiaSemana(parseLocalDate(dataIso))
-  const escalaDoDia = escalas.find((e) => e.diaSemana === diaSemana)
+const normalizeRegistro = (registro: RegistroPonto): RegistroPonto => {
+  if (registro.feriado) return registro
 
-  if (!escalaDoDia || escalaDoDia.folga) return null
+  const isFolgaDoze36 = registro.status === 'Folga'
+  const isTrabalhoDoze36 = !isFolgaDoze36 && (registro.horasPrevistas ?? 0) > 0
 
-  return escalaDoDia.horasPrevistas
+  if (isFolgaDoze36) {
+    return {
+      ...registro,
+      status: 'Folga',
+      presenca: false,
+      entrada: '',
+      almocInicio: '',
+      almocFim: '',
+      saida: '',
+      horasPrevistas: 0,
+    }
+  }
+
+  if (!isTrabalhoDoze36) return registro
+
+  return {
+    ...registro,
+    status: 'Presente',
+    presenca: true,
+    entrada: registro.entrada || '07:00',
+    almocInicio: registro.almocInicio || '12:00',
+    almocFim: registro.almocFim || '13:00',
+    saida: registro.saida || '19:00',
+    entradaPlanejada: '07:00',
+    saidaPlanejada: '19:00',
+    horasPrevistas: 11,
+  }
 }
 
 export function RegistroPontoPage() {
@@ -91,13 +113,6 @@ export function RegistroPontoPage() {
       selectedFuncionarioId
         ? registroPontoService.getAll(selectedFuncionarioId, selectedMonth, selectedYear)
         : Promise.resolve([]),
-    enabled: !!selectedFuncionarioId,
-  })
-
-  const { data: escalas } = useQuery({
-    queryKey: ['escalas', selectedFuncionarioId],
-    queryFn: () =>
-      selectedFuncionarioId ? escalaService.getByFuncionarioId(selectedFuncionarioId) : Promise.resolve([]),
     enabled: !!selectedFuncionarioId,
   })
 
@@ -266,14 +281,16 @@ export function RegistroPontoPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {registros.map((registro) => {
+                  {registros.map((registroOriginal) => {
+                    const registro = normalizeRegistro(registroOriginal)
                     const horasTrabalhadas = getHorasTrabalhadas(registro)
-                    const horasPlanejadas = getHorasPlanejadas(registro, escalas ?? [])
+                    const horasPlanejadas = getHorasPlanejadas(registro)
                     const saldoHoras =
                       horasTrabalhadas != null && horasPlanejadas != null
                         ? horasTrabalhadas - horasPlanejadas
                         : null
                     const linhaDiaAtual = isToday(registro.data)
+                    const isFolga = registroOriginal.status === 'Folga'
 
                     return (
                     <tr
@@ -297,6 +314,7 @@ export function RegistroPontoPage() {
                               handleCellChange(registro.id, 'entrada', e.target.value)
                             }
                           }}
+                          disabled={isFolga}
                           className="w-20 rounded border border-slate-300 px-2 py-1 text-xs"
                         />
                       </td>
@@ -309,6 +327,7 @@ export function RegistroPontoPage() {
                               handleCellChange(registro.id, 'almocInicio', e.target.value)
                             }
                           }}
+                          disabled={isFolga}
                           className="w-20 rounded border border-slate-300 px-2 py-1 text-xs"
                         />
                       </td>
@@ -321,6 +340,7 @@ export function RegistroPontoPage() {
                               handleCellChange(registro.id, 'almocFim', e.target.value)
                             }
                           }}
+                          disabled={isFolga}
                           className="w-20 rounded border border-slate-300 px-2 py-1 text-xs"
                         />
                       </td>
@@ -333,19 +353,26 @@ export function RegistroPontoPage() {
                               handleCellChange(registro.id, 'saida', e.target.value)
                             }
                           }}
+                          disabled={isFolga}
                           className="w-20 rounded border border-slate-300 px-2 py-1 text-xs"
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <select
-                          value={registro.status}
-                          onChange={(e) => handleStatusChange(registro.id, e.target.value)}
-                          className="rounded border border-slate-300 px-2 py-1 text-xs"
-                        >
-                          <option value="Presente">Presente</option>
-                          <option value="Falta">Falta</option>
-                          <option value="Feriado">Feriado</option>
-                        </select>
+                        {isFolga ? (
+                          <span className="inline-flex rounded-full bg-yellow-100 px-2 py-1 text-xs font-semibold text-yellow-800">
+                            Folga
+                          </span>
+                        ) : (
+                          <select
+                            value={registro.status}
+                            onChange={(e) => handleStatusChange(registro.id, e.target.value)}
+                            className="rounded border border-slate-300 px-2 py-1 text-xs"
+                          >
+                            <option value="Presente">Presente</option>
+                            <option value="Falta">Falta</option>
+                            <option value="Feriado">Feriado</option>
+                          </select>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         {saldoHoras == null ? (

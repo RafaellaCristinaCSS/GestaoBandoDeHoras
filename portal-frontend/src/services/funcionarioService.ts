@@ -17,9 +17,8 @@ export const funcionarioService = {
     return response.data
   },
 
-  update: async (id: number, data: UpdateFuncionarioDTO): Promise<Funcionario> => {
-    const response = await api.put(`/funcionarios/${id}`, data)
-    return response.data
+  update: async (id: number, data: UpdateFuncionarioDTO): Promise<void> => {
+    await api.put(`/funcionarios/${id}`, data)
   },
 
   delete: async (id: number): Promise<void> => {

@@ -123,9 +123,7 @@ export function FuncionariosPage() {
                 <tr>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Nome</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Cargo</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">
-                    Carga Horária
-                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Escala</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Status</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Ações</th>
                 </tr>
@@ -135,7 +133,7 @@ export function FuncionariosPage() {
                   <tr key={func.id} className="hover:bg-slate-50">
                     <td className="px-6 py-4 text-sm text-slate-900">{func.nome}</td>
                     <td className="px-6 py-4 text-sm text-slate-600">{func.cargo}</td>
-                    <td className="px-6 py-4 text-sm text-slate-600">{func.cargaHorariaSemanal}h</td>
+                    <td className="px-6 py-4 text-sm text-slate-600">{func.escalaNome ?? '-'}</td>
                     <td className="px-6 py-4 text-sm">
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-semibold ${

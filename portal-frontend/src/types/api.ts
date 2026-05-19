@@ -4,6 +4,8 @@ export interface Funcionario {
   nome: string
   cargo: string
   cargaHorariaSemanal: number
+  escalaId?: number
+  escalaNome?: string
   ativo: boolean
   dataCadastro?: string
 }
@@ -11,7 +13,7 @@ export interface Funcionario {
 export interface CreateFuncionarioDTO {
   nome: string
   cargo: string
-  cargaHorariaSemanal: number
+  escalaId: number
   ativo: boolean
 }
 

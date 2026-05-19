@@ -7,7 +7,7 @@ namespace Portal.DTOs
         public int FuncionarioId { get; set; }
         public string Nome { get; set; }
         public string Cargo { get; set; }
-        public int CargaHorariaSemanal { get; set; }
+        public int EscalaId { get; set; }
         public bool Ativo { get; set; }
 
         public int CreatedByUserId { get; set; }
@@ -19,7 +19,7 @@ namespace Portal.DTOs
         public int? FuncionarioId { get; set; }
         public string? Nome { get; set; }
         public string? Cargo { get; set; }
-        public int? CargaHorariaSemanal { get; set; }
+        public int? EscalaId { get; set; }
         public bool? Ativo { get; set; }
 
         public int? UpdatedByUserId { get; set; }
@@ -32,6 +32,8 @@ namespace Portal.DTOs
         public string Nome { get; set; }
         public string Cargo { get; set; }
         public int CargaHorariaSemanal { get; set; }
+        public int? EscalaId { get; set; }
+        public string? EscalaNome { get; set; }
         public bool Ativo { get; set; }
 
 
