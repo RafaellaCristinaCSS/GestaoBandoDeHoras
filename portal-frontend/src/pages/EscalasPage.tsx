@@ -246,6 +246,7 @@ export function EscalasPage() {
         isOpen={isModalOpen}
         onClose={() => { setIsModalOpen(false); setEditingEscala(null) }}
         title={editingEscala ? 'Editar Escala' : 'Nova Escala'}
+        size="2xl"
       >
         <EscalaForm
           onSubmit={handleSubmit}
