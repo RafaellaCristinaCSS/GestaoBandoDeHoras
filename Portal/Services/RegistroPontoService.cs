@@ -57,15 +57,28 @@ namespace Portal.Services
                 || !string.IsNullOrWhiteSpace(registro.HoraAlmocoFim)
                 || !string.IsNullOrWhiteSpace(registro.HoraSaida);
 
-        private static void ApplyEscala(RegistroPonto registro, EscalaDetalhe? detalhe)
+        private static bool DeveReaplicarEscala(RegistroPonto registro)
+            => !registro.Feriado
+                && registro.Presenca
+                && registro.ChangeDate == null;
+
+        private static void ApplyEscala(RegistroPonto registro, EscalaDetalhe? detalhe, bool sobrescreverHorarios = false)
         {
             if (detalhe == null || detalhe.Folga)
                 return;
 
-            registro.HoraEntrada = string.IsNullOrWhiteSpace(registro.HoraEntrada) ? detalhe.HoraInicio : registro.HoraEntrada;
-            registro.HoraAlmocoInicio = string.IsNullOrWhiteSpace(registro.HoraAlmocoInicio) ? (detalhe.HoraAlmocoInicio ?? string.Empty) : registro.HoraAlmocoInicio;
-            registro.HoraAlmocoFim = string.IsNullOrWhiteSpace(registro.HoraAlmocoFim) ? (detalhe.HoraAlmocoFim ?? string.Empty) : registro.HoraAlmocoFim;
-            registro.HoraSaida = string.IsNullOrWhiteSpace(registro.HoraSaida) ? detalhe.HoraFim : registro.HoraSaida;
+            registro.HoraEntrada = sobrescreverHorarios || string.IsNullOrWhiteSpace(registro.HoraEntrada)
+                ? detalhe.HoraInicio
+                : registro.HoraEntrada;
+            registro.HoraAlmocoInicio = sobrescreverHorarios || string.IsNullOrWhiteSpace(registro.HoraAlmocoInicio)
+                ? (detalhe.HoraAlmocoInicio ?? string.Empty)
+                : registro.HoraAlmocoInicio;
+            registro.HoraAlmocoFim = sobrescreverHorarios || string.IsNullOrWhiteSpace(registro.HoraAlmocoFim)
+                ? (detalhe.HoraAlmocoFim ?? string.Empty)
+                : registro.HoraAlmocoFim;
+            registro.HoraSaida = sobrescreverHorarios || string.IsNullOrWhiteSpace(registro.HoraSaida)
+                ? detalhe.HoraFim
+                : registro.HoraSaida;
         }
 
         private static EscalaDetalhe? ResolveDetalheParaData(DateTime data, FuncionarioEscala? vinculo)
@@ -253,7 +266,7 @@ namespace Portal.Services
             var atualizouRegistrosExistentes = false;
             foreach (var registro in list)
             {
-                if (registro.Feriado || !registro.Presenca || HasMarcacaoReal(registro))
+                if (!DeveReaplicarEscala(registro))
                     continue;
 
                 if ((!registro.EscalaId.HasValue || !registro.FuncionarioEscalaId.HasValue)
@@ -278,7 +291,7 @@ namespace Portal.Services
                 var almocoFimAnterior = registro.HoraAlmocoFim;
                 var saidaAnterior = registro.HoraSaida;
 
-                ApplyEscala(registro, detalhe);
+                ApplyEscala(registro, detalhe, sobrescreverHorarios: true);
 
                 if (registro.HoraEntrada != entradaAnterior
                     || registro.HoraAlmocoInicio != almocoInicioAnterior

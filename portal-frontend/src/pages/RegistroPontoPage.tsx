@@ -175,7 +175,7 @@ export function RegistroPontoPage() {
   if (isLoadingFunc) return <Loading />
 
   return (
-    <div>
+    <div className="px-4 pb-6 sm:px-6">
       {toast && (
         <div className="mb-4">
           <Toast
@@ -187,10 +187,10 @@ export function RegistroPontoPage() {
       )}
 
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-slate-900 mb-6">Registro de Ponto</h1>
+        <h1 className="mb-6 text-2xl font-bold text-slate-900 sm:text-3xl">Registro de Ponto</h1>
 
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="grid grid-cols-3 gap-4">
+        <div className="mb-6 rounded-lg bg-white p-4 shadow sm:p-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Funcionário *
@@ -254,121 +254,40 @@ export function RegistroPontoPage() {
               description={`Nenhum registro para ${selectedFuncionario.nome} em ${selectedMonth}/${selectedYear}`}
             />
           ) : (
-            <div className="bg-white rounded-lg shadow overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50 border-b sticky top-0">
-                  <tr>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-900">Data</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-900">Dia</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-900">Entrada</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-900">Almoço Ini.</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-900">Almoço Fim</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-900">Saída</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-900">Status</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-900">Horas</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-900">Obs.</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {registros.map((registroOriginal) => {
-                    const registro = normalizeRegistro(registroOriginal)
-                    const horasTrabalhadas = getHorasTrabalhadas(registro)
-                    const horasPlanejadas = getHorasPlanejadas(registro)
-                    const saldoHoras =
-                      horasTrabalhadas != null && horasPlanejadas != null
-                        ? horasTrabalhadas - horasPlanejadas
-                        : null
-                    const linhaDiaAtual = isToday(registro.data)
-                    const isFolga = registroOriginal.status === 'Folga'
+            <div className="rounded-lg bg-white shadow">
+              <div className="space-y-4 p-4 md:hidden">
+                {registros.map((registroOriginal) => {
+                  const registro = normalizeRegistro(registroOriginal)
+                  const horasTrabalhadas = getHorasTrabalhadas(registro)
+                  const horasPlanejadas = getHorasPlanejadas(registro)
+                  const saldoHoras =
+                    horasTrabalhadas != null && horasPlanejadas != null
+                      ? horasTrabalhadas - horasPlanejadas
+                      : null
+                  const linhaDiaAtual = isToday(registro.data)
+                  const isFolga = registroOriginal.status === 'Folga'
 
-                    return (
-                    <tr
+                  return (
+                    <div
                       key={registro.id}
-                      className={linhaDiaAtual ? 'bg-amber-50/70 hover:bg-amber-100/70' : 'hover:bg-slate-50'}
+                      className={`rounded-xl border p-4 shadow-sm ${
+                        linhaDiaAtual ? 'border-amber-200 bg-amber-50/70' : 'border-slate-200 bg-white'
+                      }`}
                     >
-                      <td className="px-4 py-3 text-slate-900">
-                        {parseLocalDate(registro.data).toLocaleDateString('pt-BR')}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {parseLocalDate(registro.data).toLocaleString('pt-BR', {
-                          weekday: 'short',
-                        })}
-                      </td>
-                      <td className="px-4 py-3">
-                        <input
-                          type="time"
-                          defaultValue={registro.entrada || ''}
-                          onBlur={(e) => {
-                            if (e.target.value !== (registro.entrada || '')) {
-                              handleCellChange(registro.id, 'entrada', e.target.value)
-                            }
-                          }}
-                          disabled={isFolga}
-                          className="w-20 rounded border border-slate-300 px-2 py-1 text-xs"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <input
-                          type="time"
-                          defaultValue={registro.almocInicio || ''}
-                          onBlur={(e) => {
-                            if (e.target.value !== (registro.almocInicio || '')) {
-                              handleCellChange(registro.id, 'almocInicio', e.target.value)
-                            }
-                          }}
-                          disabled={isFolga}
-                          className="w-20 rounded border border-slate-300 px-2 py-1 text-xs"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <input
-                          type="time"
-                          defaultValue={registro.almocFim || ''}
-                          onBlur={(e) => {
-                            if (e.target.value !== (registro.almocFim || '')) {
-                              handleCellChange(registro.id, 'almocFim', e.target.value)
-                            }
-                          }}
-                          disabled={isFolga}
-                          className="w-20 rounded border border-slate-300 px-2 py-1 text-xs"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <input
-                          type="time"
-                          defaultValue={registro.saida || ''}
-                          onBlur={(e) => {
-                            if (e.target.value !== (registro.saida || '')) {
-                              handleCellChange(registro.id, 'saida', e.target.value)
-                            }
-                          }}
-                          disabled={isFolga}
-                          className="w-20 rounded border border-slate-300 px-2 py-1 text-xs"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        {isFolga ? (
-                          <span className="inline-flex rounded-full bg-yellow-100 px-2 py-1 text-xs font-semibold text-yellow-800">
-                            Folga
-                          </span>
-                        ) : (
-                          <select
-                            value={registro.status}
-                            onChange={(e) => handleStatusChange(registro.id, e.target.value)}
-                            className="rounded border border-slate-300 px-2 py-1 text-xs"
-                          >
-                            <option value="Presente">Presente</option>
-                            <option value="Falta">Falta</option>
-                            <option value="Feriado">Feriado</option>
-                          </select>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
+                      <div className="mb-4 flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-semibold text-slate-900">
+                            {parseLocalDate(registro.data).toLocaleDateString('pt-BR')}
+                          </div>
+                          <div className="text-xs uppercase tracking-wide text-slate-500">
+                            {parseLocalDate(registro.data).toLocaleString('pt-BR', { weekday: 'long' })}
+                          </div>
+                        </div>
                         {saldoHoras == null ? (
                           <span className="text-xs text-slate-500">-</span>
                         ) : (
                           <span
-                            className={`px-2 py-1 rounded text-xs font-semibold ${
+                            className={`rounded px-2 py-1 text-xs font-semibold ${
                               saldoHoras < 0
                                 ? 'bg-red-100 text-red-800'
                                 : saldoHoras > 0
@@ -379,24 +298,252 @@ export function RegistroPontoPage() {
                             {horasTrabalhadas!.toFixed(1)}h / {horasPlanejadas!.toFixed(1)}h
                           </span>
                         )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <input
-                          type="text"
-                          defaultValue={registro.observacao || ''}
-                          onBlur={(e) => {
-                            if (e.target.value !== (registro.observacao || '')) {
-                              handleCellChange(registro.id, 'observacao', e.target.value)
-                            }
-                          }}
-                          className="w-32 rounded border border-slate-300 px-2 py-1 text-xs"
-                          placeholder="Obs."
-                        />
-                      </td>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <label className="text-xs font-medium text-slate-600">
+                          Entrada
+                          <input
+                            type="time"
+                            defaultValue={registro.entrada || ''}
+                            onBlur={(e) => {
+                              if (e.target.value !== (registro.entrada || '')) {
+                                handleCellChange(registro.id, 'entrada', e.target.value)
+                              }
+                            }}
+                            disabled={isFolga}
+                            className="mt-1 w-full rounded border border-slate-300 px-2 py-2 text-sm"
+                          />
+                        </label>
+                        <label className="text-xs font-medium text-slate-600">
+                          Saída
+                          <input
+                            type="time"
+                            defaultValue={registro.saida || ''}
+                            onBlur={(e) => {
+                              if (e.target.value !== (registro.saida || '')) {
+                                handleCellChange(registro.id, 'saida', e.target.value)
+                              }
+                            }}
+                            disabled={isFolga}
+                            className="mt-1 w-full rounded border border-slate-300 px-2 py-2 text-sm"
+                          />
+                        </label>
+                        <label className="text-xs font-medium text-slate-600">
+                          Almoço início
+                          <input
+                            type="time"
+                            defaultValue={registro.almocInicio || ''}
+                            onBlur={(e) => {
+                              if (e.target.value !== (registro.almocInicio || '')) {
+                                handleCellChange(registro.id, 'almocInicio', e.target.value)
+                              }
+                            }}
+                            disabled={isFolga}
+                            className="mt-1 w-full rounded border border-slate-300 px-2 py-2 text-sm"
+                          />
+                        </label>
+                        <label className="text-xs font-medium text-slate-600">
+                          Almoço fim
+                          <input
+                            type="time"
+                            defaultValue={registro.almocFim || ''}
+                            onBlur={(e) => {
+                              if (e.target.value !== (registro.almocFim || '')) {
+                                handleCellChange(registro.id, 'almocFim', e.target.value)
+                              }
+                            }}
+                            disabled={isFolga}
+                            className="mt-1 w-full rounded border border-slate-300 px-2 py-2 text-sm"
+                          />
+                        </label>
+                      </div>
+
+                      <div className="mt-4 grid gap-3">
+                        <div>
+                          <div className="mb-1 text-xs font-medium text-slate-600">Status</div>
+                          {isFolga ? (
+                            <span className="inline-flex rounded-full bg-yellow-100 px-2 py-1 text-xs font-semibold text-yellow-800">
+                              Folga
+                            </span>
+                          ) : (
+                            <select
+                              value={registro.status}
+                              onChange={(e) => handleStatusChange(registro.id, e.target.value)}
+                              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                            >
+                              <option value="Presente">Presente</option>
+                              <option value="Falta">Falta</option>
+                              <option value="Feriado">Feriado</option>
+                            </select>
+                          )}
+                        </div>
+
+                        <label className="text-xs font-medium text-slate-600">
+                          Observação
+                          <input
+                            type="text"
+                            defaultValue={registro.observacao || ''}
+                            onBlur={(e) => {
+                              if (e.target.value !== (registro.observacao || '')) {
+                                handleCellChange(registro.id, 'observacao', e.target.value)
+                              }
+                            }}
+                            className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                            placeholder="Obs."
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full min-w-[920px] text-sm">
+                  <thead className="sticky top-0 border-b bg-slate-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-semibold text-slate-900">Data</th>
+                      <th className="px-4 py-3 text-left font-semibold text-slate-900">Dia</th>
+                      <th className="px-4 py-3 text-left font-semibold text-slate-900">Entrada</th>
+                      <th className="px-4 py-3 text-left font-semibold text-slate-900">Almoço Ini.</th>
+                      <th className="px-4 py-3 text-left font-semibold text-slate-900">Almoço Fim</th>
+                      <th className="px-4 py-3 text-left font-semibold text-slate-900">Saída</th>
+                      <th className="px-4 py-3 text-left font-semibold text-slate-900">Status</th>
+                      <th className="px-4 py-3 text-left font-semibold text-slate-900">Horas</th>
+                      <th className="px-4 py-3 text-left font-semibold text-slate-900">Obs.</th>
                     </tr>
-                  )})}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y">
+                    {registros.map((registroOriginal) => {
+                      const registro = normalizeRegistro(registroOriginal)
+                      const horasTrabalhadas = getHorasTrabalhadas(registro)
+                      const horasPlanejadas = getHorasPlanejadas(registro)
+                      const saldoHoras =
+                        horasTrabalhadas != null && horasPlanejadas != null
+                          ? horasTrabalhadas - horasPlanejadas
+                          : null
+                      const linhaDiaAtual = isToday(registro.data)
+                      const isFolga = registroOriginal.status === 'Folga'
+
+                      return (
+                        <tr
+                          key={registro.id}
+                          className={linhaDiaAtual ? 'bg-amber-50/70 hover:bg-amber-100/70' : 'hover:bg-slate-50'}
+                        >
+                          <td className="px-4 py-3 text-slate-900">
+                            {parseLocalDate(registro.data).toLocaleDateString('pt-BR')}
+                          </td>
+                          <td className="px-4 py-3 text-slate-600">
+                            {parseLocalDate(registro.data).toLocaleString('pt-BR', {
+                              weekday: 'short',
+                            })}
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="time"
+                              defaultValue={registro.entrada || ''}
+                              onBlur={(e) => {
+                                if (e.target.value !== (registro.entrada || '')) {
+                                  handleCellChange(registro.id, 'entrada', e.target.value)
+                                }
+                              }}
+                              disabled={isFolga}
+                              className="w-20 rounded border border-slate-300 px-2 py-1 text-xs"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="time"
+                              defaultValue={registro.almocInicio || ''}
+                              onBlur={(e) => {
+                                if (e.target.value !== (registro.almocInicio || '')) {
+                                  handleCellChange(registro.id, 'almocInicio', e.target.value)
+                                }
+                              }}
+                              disabled={isFolga}
+                              className="w-20 rounded border border-slate-300 px-2 py-1 text-xs"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="time"
+                              defaultValue={registro.almocFim || ''}
+                              onBlur={(e) => {
+                                if (e.target.value !== (registro.almocFim || '')) {
+                                  handleCellChange(registro.id, 'almocFim', e.target.value)
+                                }
+                              }}
+                              disabled={isFolga}
+                              className="w-20 rounded border border-slate-300 px-2 py-1 text-xs"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="time"
+                              defaultValue={registro.saida || ''}
+                              onBlur={(e) => {
+                                if (e.target.value !== (registro.saida || '')) {
+                                  handleCellChange(registro.id, 'saida', e.target.value)
+                                }
+                              }}
+                              disabled={isFolga}
+                              className="w-20 rounded border border-slate-300 px-2 py-1 text-xs"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            {isFolga ? (
+                              <span className="inline-flex rounded-full bg-yellow-100 px-2 py-1 text-xs font-semibold text-yellow-800">
+                                Folga
+                              </span>
+                            ) : (
+                              <select
+                                value={registro.status}
+                                onChange={(e) => handleStatusChange(registro.id, e.target.value)}
+                                className="rounded border border-slate-300 px-2 py-1 text-xs"
+                              >
+                                <option value="Presente">Presente</option>
+                                <option value="Falta">Falta</option>
+                                <option value="Feriado">Feriado</option>
+                              </select>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {saldoHoras == null ? (
+                              <span className="text-xs text-slate-500">-</span>
+                            ) : (
+                              <span
+                                className={`rounded px-2 py-1 text-xs font-semibold ${
+                                  saldoHoras < 0
+                                    ? 'bg-red-100 text-red-800'
+                                    : saldoHoras > 0
+                                      ? 'bg-green-100 text-green-800'
+                                      : 'bg-slate-100 text-slate-700'
+                                }`}
+                              >
+                                {horasTrabalhadas!.toFixed(1)}h / {horasPlanejadas!.toFixed(1)}h
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="text"
+                              defaultValue={registro.observacao || ''}
+                              onBlur={(e) => {
+                                if (e.target.value !== (registro.observacao || '')) {
+                                  handleCellChange(registro.id, 'observacao', e.target.value)
+                                }
+                              }}
+                              className="w-32 rounded border border-slate-300 px-2 py-1 text-xs"
+                              placeholder="Obs."
+                            />
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </>

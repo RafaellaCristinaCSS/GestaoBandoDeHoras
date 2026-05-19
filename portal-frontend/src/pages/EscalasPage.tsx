@@ -108,18 +108,57 @@ export function EscalasPage() {
     onError: () => showToast('Erro ao criar escala', 'error'),
   })
 
+  const syncEscalaDetalhes = async (escalaId: number, data: EscalaFormData, detalhesAtuais: Escala['detalhes']) => {
+    const detalhesPorDia = new Map(detalhesAtuais.map((detalhe) => [detalhe.diaSemana, detalhe]))
+    const diasRecebidos = new Set<number>()
+
+    await Promise.all(
+      data.detalhes.map(async (detalhe) => {
+        diasRecebidos.add(detalhe.diaSemana)
+
+        const payload = {
+          horaInicio: detalhe.horaInicio ?? '',
+          horaFim: detalhe.horaFim ?? '',
+          horaAlmocoInicio: detalhe.horaAlmocoInicio ?? '',
+          horaAlmocoFim: detalhe.horaAlmocoFim ?? '',
+          horasPrevistas: detalhe.horasPrevistas,
+          folga: detalhe.folga,
+        }
+
+        const detalheExistente = detalhesPorDia.get(detalhe.diaSemana)
+        if (detalheExistente) {
+          await escalaService.updateDetalhe(detalheExistente.id, payload)
+          return
+        }
+
+        await escalaService.addDetalhe(escalaId, {
+          diaSemana: detalhe.diaSemana,
+          ...payload,
+        })
+      })
+    )
+
+    const detalhesRemovidos = detalhesAtuais.filter((detalhe) => !diasRecebidos.has(detalhe.diaSemana))
+    await Promise.all(detalhesRemovidos.map((detalhe) => escalaService.deleteDetalhe(detalhe.id)))
+  }
+
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: EscalaFormData }) =>
-      escalaService.update(id, {
+    mutationFn: async ({ id, data, detalhesAtuais }: { id: number; data: EscalaFormData; detalhesAtuais: Escala['detalhes'] }) => {
+      await escalaService.update(id, {
         nome: data.nome,
         descricao: data.descricao,
         cargaHorariaSemanal: data.cargaHorariaSemanal,
         tipoEscala: data.tipoEscala,
         trabalhaDiaParPadrao: data.trabalhaDiaParPadrao ?? undefined,
         ativa: data.ativa,
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['escalas'] })
+      })
+
+      await syncEscalaDetalhes(id, data, detalhesAtuais)
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['escalas'] })
+      await queryClient.invalidateQueries({ queryKey: ['registros-ponto'] })
+      await queryClient.invalidateQueries({ queryKey: ['relatorio-geral'] })
       setIsModalOpen(false)
       setEditingEscala(null)
       showToast('Escala atualizada com sucesso!', 'success')
@@ -158,7 +197,7 @@ export function EscalasPage() {
 
   const handleSubmit = async (data: EscalaFormData) => {
     if (editingEscala) {
-      await updateMutation.mutateAsync({ id: editingEscala.id, data })
+      await updateMutation.mutateAsync({ id: editingEscala.id, data, detalhesAtuais: editingEscala.detalhes })
     } else {
       await createMutation.mutateAsync(data)
     }
