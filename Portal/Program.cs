@@ -228,20 +228,31 @@ static async Task BaselineLegacyDatabaseAsync(
     ILogger logger,
     CancellationToken cancellationToken)
 {
-    var allMigrations = dbContext.Database.GetMigrations();
-    var initialMigrationId = allMigrations.FirstOrDefault();
-    if(string.IsNullOrWhiteSpace(initialMigrationId))
+    var allMigrations = dbContext.Database.GetMigrations().ToList();
+    if(allMigrations.Count == 0)
     {
         return;
     }
 
-    var appliedMigrations = await dbContext.Database.GetAppliedMigrationsAsync(cancellationToken);
-    if(appliedMigrations.Any())
+    var appliedMigrations = (await dbContext.Database.GetAppliedMigrationsAsync(cancellationToken)).ToHashSet();
+    var migrationsToBaseline = new List<string>();
+
+    foreach(var migrationId in allMigrations)
     {
-        return;
+        if(appliedMigrations.Contains(migrationId))
+        {
+            continue;
+        }
+
+        if(!await MigrationLooksAppliedAsync(dbContext, migrationId, cancellationToken))
+        {
+            break;
+        }
+
+        migrationsToBaseline.Add(migrationId);
     }
 
-    if(!await LegacyInitialSchemaExistsAsync(dbContext, cancellationToken))
+    if(migrationsToBaseline.Count == 0)
     {
         return;
     }
@@ -261,20 +272,7 @@ CREATE TABLE IF NOT EXISTS ""__EFMigrationsHistory"" (
     ""MigrationId"" character varying(150) NOT NULL,
     ""ProductVersion"" character varying(32) NOT NULL,
     CONSTRAINT ""PK___EFMigrationsHistory"" PRIMARY KEY (""MigrationId"")
-);
-
-INSERT INTO ""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
-SELECT @migrationId, @productVersion
-WHERE NOT EXISTS (
-    SELECT 1
-    FROM ""__EFMigrationsHistory""
-    WHERE ""MigrationId"" = @migrationId
 );";
-
-        var migrationParameter = command.CreateParameter();
-        migrationParameter.ParameterName = "@migrationId";
-        migrationParameter.Value = initialMigrationId;
-        command.Parameters.Add(migrationParameter);
 
         var productVersionParameter = command.CreateParameter();
         productVersionParameter.ParameterName = "@productVersion";
@@ -283,9 +281,30 @@ WHERE NOT EXISTS (
 
         await command.ExecuteNonQueryAsync(cancellationToken);
 
+        foreach(var migrationId in migrationsToBaseline)
+        {
+            command.Parameters.Clear();
+            command.CommandText = @"
+INSERT INTO ""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
+SELECT @migrationId, @productVersion
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM ""__EFMigrationsHistory""
+    WHERE ""MigrationId"" = @migrationId
+);";
+
+            var migrationParameter = command.CreateParameter();
+            migrationParameter.ParameterName = "@migrationId";
+            migrationParameter.Value = migrationId;
+            command.Parameters.Add(migrationParameter);
+            command.Parameters.Add(productVersionParameter);
+
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
         logger.LogWarning(
-            "Banco legado detectado sem __EFMigrationsHistory. Migration inicial {MigrationId} foi registrada antes de aplicar as demais.",
-            initialMigrationId);
+            "Banco legado detectado com migrations ausentes no historico. Foram registradas antes do migrate: {MigrationIds}.",
+            string.Join(", ", migrationsToBaseline));
     }
     finally
     {
@@ -296,14 +315,160 @@ WHERE NOT EXISTS (
     }
 }
 
-static async Task<bool> LegacyInitialSchemaExistsAsync(AppDbContext dbContext, CancellationToken cancellationToken)
+static Task<bool> MigrationLooksAppliedAsync(
+    AppDbContext dbContext,
+    string migrationId,
+    CancellationToken cancellationToken)
+{
+    if(migrationId.EndsWith("_InitialCreate", StringComparison.Ordinal))
+    {
+        return AllTablesExistAsync(
+            dbContext,
+            ["Funcionario", "Escala", "Ferias", "RegistroPonto"],
+            cancellationToken);
+    }
+
+    if(migrationId.EndsWith("_AddAlmocoToEscala", StringComparison.Ordinal))
+    {
+        return AnyConditionAsync(
+            AllColumnsExistAsync(dbContext, "Escala", ["HoraAlmocoInicio", "HoraAlmocoFim"], cancellationToken),
+            TableExistsAsync(dbContext, "EscalaDetalhe", cancellationToken));
+    }
+
+    if(migrationId.EndsWith("_AddCargoTable", StringComparison.Ordinal))
+    {
+        return TableExistsAsync(dbContext, "Cargo", cancellationToken);
+    }
+
+    if(migrationId.EndsWith("_AddFeriadoToRegistroPonto", StringComparison.Ordinal))
+    {
+        return ColumnExistsAsync(dbContext, "RegistroPonto", "Feriado", cancellationToken);
+    }
+
+    if(migrationId.EndsWith("_RefactorEscalasCentralizadas", StringComparison.Ordinal))
+    {
+        return AllConditionsAsync(
+            TableExistsAsync(dbContext, "EscalaDetalhe", cancellationToken),
+            TableExistsAsync(dbContext, "FuncionarioEscala", cancellationToken),
+            ColumnExistsAsync(dbContext, "Escala", "Descricao", cancellationToken),
+            ColumnExistsAsync(dbContext, "Escala", "CreatedAt", cancellationToken),
+            ColumnExistsAsync(dbContext, "Escala", "TipoEscala", cancellationToken));
+    }
+
+    if(migrationId.EndsWith("_AddEscalaRefToRegistroPonto", StringComparison.Ordinal))
+    {
+        return AllConditionsAsync(
+            ColumnExistsAsync(dbContext, "RegistroPonto", "EscalaId", cancellationToken),
+            ColumnExistsAsync(dbContext, "RegistroPonto", "FuncionarioEscalaId", cancellationToken));
+    }
+
+    if(migrationId.EndsWith("_AddParidade12x36FuncionarioEscala", StringComparison.Ordinal))
+    {
+        return ColumnExistsAsync(dbContext, "FuncionarioEscala", "TrabalhaDiaPar", cancellationToken);
+    }
+
+    if(migrationId.EndsWith("_AddParidadePadraoEscalaDoze36", StringComparison.Ordinal))
+    {
+        return ColumnExistsAsync(dbContext, "Escala", "TrabalhaDiaParPadrao", cancellationToken);
+    }
+
+    if(migrationId.EndsWith("_AddTurnoDoze36Escala", StringComparison.Ordinal))
+    {
+        return ColumnExistsAsync(dbContext, "Escala", "TurnoDoze36", cancellationToken);
+    }
+
+    return Task.FromResult(false);
+}
+
+static async Task<bool> AllTablesExistAsync(
+    AppDbContext dbContext,
+    IEnumerable<string> tableNames,
+    CancellationToken cancellationToken)
+{
+    foreach(var tableName in tableNames)
+    {
+        if(!await TableExistsAsync(dbContext, tableName, cancellationToken))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static async Task<bool> AllColumnsExistAsync(
+    AppDbContext dbContext,
+    string tableName,
+    IEnumerable<string> columnNames,
+    CancellationToken cancellationToken)
+{
+    foreach(var columnName in columnNames)
+    {
+        if(!await ColumnExistsAsync(dbContext, tableName, columnName, cancellationToken))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static async Task<bool> AllConditionsAsync(params Task<bool>[] conditions)
+{
+    foreach(var condition in conditions)
+    {
+        if(!await condition)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static async Task<bool> AnyConditionAsync(params Task<bool>[] conditions)
+{
+    foreach(var condition in conditions)
+    {
+        if(await condition)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static async Task<bool> TableExistsAsync(
+    AppDbContext dbContext,
+    string tableName,
+    CancellationToken cancellationToken)
 {
     const string sql = @"
-SELECT
-    EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = 'Funcionario')
-    AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = 'Escala')
-    AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = 'Ferias')
-    AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = 'RegistroPonto');";
+SELECT EXISTS (
+    SELECT 1
+    FROM information_schema.tables
+    WHERE table_schema = current_schema()
+      AND table_name = @tableName
+);";
+
+    return await ExecuteExistsScalarAsync(dbContext, sql, "@tableName", tableName, cancellationToken);
+}
+
+static async Task<bool> ColumnExistsAsync(
+    AppDbContext dbContext,
+    string tableName,
+    string columnName,
+    CancellationToken cancellationToken)
+{
+    const string sql = @"
+SELECT EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = current_schema()
+      AND table_name = @tableName
+      AND column_name = @columnName
+);";
 
     var connection = dbContext.Database.GetDbConnection();
     var shouldCloseConnection = connection.State != ConnectionState.Open;
@@ -316,6 +481,53 @@ SELECT
     {
         await using var command = connection.CreateCommand();
         command.CommandText = sql;
+
+        var tableParameter = command.CreateParameter();
+        tableParameter.ParameterName = "@tableName";
+        tableParameter.Value = tableName;
+        command.Parameters.Add(tableParameter);
+
+        var columnParameter = command.CreateParameter();
+        columnParameter.ParameterName = "@columnName";
+        columnParameter.Value = columnName;
+        command.Parameters.Add(columnParameter);
+
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        return result is bool exists && exists;
+    }
+    finally
+    {
+        if(shouldCloseConnection)
+        {
+            await connection.CloseAsync();
+        }
+    }
+}
+
+static async Task<bool> ExecuteExistsScalarAsync(
+    AppDbContext dbContext,
+    string sql,
+    string parameterName,
+    string parameterValue,
+    CancellationToken cancellationToken)
+{
+
+    var connection = dbContext.Database.GetDbConnection();
+    var shouldCloseConnection = connection.State != ConnectionState.Open;
+    if(shouldCloseConnection)
+    {
+        await connection.OpenAsync(cancellationToken);
+    }
+
+    try
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = sql;
+
+        var parameter = command.CreateParameter();
+        parameter.ParameterName = parameterName;
+        parameter.Value = parameterValue;
+        command.Parameters.Add(parameter);
 
         var result = await command.ExecuteScalarAsync(cancellationToken);
         return result is bool exists && exists;
