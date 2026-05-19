@@ -3,7 +3,9 @@ import axios from 'axios'
 const isProd = Boolean((import.meta as any).env.PROD)
 
 const API_BASE_URL =
-  (import.meta as any).env.VITE_API_URL ||
+  (isProd
+    ? (import.meta as any).env.VITE_API_URL_PROD
+    : (import.meta as any).env.VITE_API_URL) ||
   (isProd
     ? 'https://gestaobandodehoras-production.up.railway.app/api'
     : 'http://localhost:5264/api')

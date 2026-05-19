@@ -44,11 +44,19 @@ npm run preview
 
 ## Variáveis de Ambiente
 
-Crie um arquivo `.env` na raiz do projeto:
+Desenvolvimento local:
 
 ```
-VITE_API_URL=http://localhost:5000/api
+VITE_API_URL=http://localhost:5264/api
 ```
+
+Produção:
+
+```
+VITE_API_URL_PROD=https://gestaobandodehoras-production.up.railway.app/api
+```
+
+Use `.env.development.local` para desenvolvimento local e `.env.production` para sobrescrever a URL da API em builds de produção.
 
 ## Deploy no GitHub Pages
 
@@ -67,12 +75,38 @@ git push origin main
    - Branch: main
    - Folder: / (root)
 
-3. **Build automático:**
+3. **Build para produção:**
 ```bash
 npm run build
 ```
 
+Antes do deploy, confirme que o build gerou a URL da API de produção e não `localhost`.
+
 O site estará disponível em: `https://seu-usuario.github.io/GestaoBandoDeHoras/`
+
+## Backend em Produção
+
+No backend, configure estas variáveis de ambiente na hospedagem:
+
+```text
+Jwt__Key=uma-chave-grande-e-secreta
+Jwt__Issuer=Portal.Production
+Jwt__Audience=Portal.Production
+```
+
+Banco de dados, use uma destas opções:
+
+```text
+ConnectionStrings__DefaultConnection=Host=...;Port=5432;Database=...;Username=...;Password=...;SSL Mode=Require;Trust Server Certificate=true
+```
+
+ou
+
+```text
+DATABASE_URL=postgresql://usuario:senha@host:5432/banco
+```
+
+O backend aplica as migrations ao iniciar, então a conexão do banco precisa estar correta antes do primeiro deploy.
 
 ## Estrutura de Pastas
 

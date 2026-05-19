@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Npgsql;
 using Portal.Data;
 using Portal.Repositories;
 using Portal.Services;
@@ -115,6 +116,17 @@ builder.Services.AddAuthorization(options =>
 // Database
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
+connectionString ??= BuildPostgresConnectionStringFromDatabaseUrl(
+    builder.Configuration["DATABASE_URL"]
+);
+
+if(string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException(
+        "ConnectionStrings:DefaultConnection não configurada. Defina ConnectionStrings__DefaultConnection ou DATABASE_URL no ambiente de produção."
+    );
+}
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString)
 );
@@ -170,3 +182,41 @@ app.MapControllers();
 app.MapGet("/",() => Results.Redirect("/swagger"));
 
 app.Run();
+
+static string? BuildPostgresConnectionStringFromDatabaseUrl(string? databaseUrl)
+{
+    if(string.IsNullOrWhiteSpace(databaseUrl))
+    {
+        return null;
+    }
+
+    if(!Uri.TryCreate(databaseUrl,UriKind.Absolute,out var uri))
+    {
+        return null;
+    }
+
+    var userInfoParts = uri.UserInfo.Split(':',2,StringSplitOptions.TrimEntries);
+    if(userInfoParts.Length != 2)
+    {
+        return null;
+    }
+
+    var databaseName = uri.AbsolutePath.Trim('/');
+    if(string.IsNullOrWhiteSpace(databaseName))
+    {
+        return null;
+    }
+
+    var builder = new NpgsqlConnectionStringBuilder
+    {
+        Host = uri.Host,
+        Port = uri.Port > 0 ? uri.Port : 5432,
+        Username = Uri.UnescapeDataString(userInfoParts[0]),
+        Password = Uri.UnescapeDataString(userInfoParts[1]),
+        Database = Uri.UnescapeDataString(databaseName),
+        SslMode = SslMode.Require,
+        TrustServerCertificate = true
+    };
+
+    return builder.ConnectionString;
+}
