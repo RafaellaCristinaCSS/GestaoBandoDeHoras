@@ -44,6 +44,8 @@ const tipoEscalaLabel: Record<number, string> = {
   [TipoEscala.Personalizada]: 'Personalizada',
 }
 
+const exibirAcoesEscala = false
+
 export function EscalasPage() {
   const queryClient = useQueryClient()
   const { showToast } = useToast()
@@ -277,34 +279,36 @@ export function EscalasPage() {
                     </p>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setAtribuirEscalaId(escala.id)
-                      setAtribuirDataInicio(formatDateForInput(getCompetenciaAtualInicio()))
-                      setTrabalhaDiaPar(escala.tipoEscala === TipoEscala.Doze36 ? escala.trabalhaDiaParPadrao ?? null : null)
-                      setIsAtribuirModalOpen(true)
-                    }}
-                    className="flex items-center gap-1 text-green-600 hover:text-green-800 text-sm"
-                  >
-                    <Users size={16} />
-                    Atribuir
-                  </button>
-                  <button
-                    onClick={() => { setEditingEscala(escala); setIsModalOpen(true) }}
-                    className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm"
-                  >
-                    <Edit2 size={16} />
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => setDeleteConfirm(escala.id)}
-                    className="flex items-center gap-1 text-red-600 hover:text-red-800 text-sm"
-                  >
-                    <Trash2 size={16} />
-                    Desativar
-                  </button>
-                </div>
+                {exibirAcoesEscala && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setAtribuirEscalaId(escala.id)
+                        setAtribuirDataInicio(formatDateForInput(getCompetenciaAtualInicio()))
+                        setTrabalhaDiaPar(escala.tipoEscala === TipoEscala.Doze36 ? escala.trabalhaDiaParPadrao ?? null : null)
+                        setIsAtribuirModalOpen(true)
+                      }}
+                      className="flex items-center gap-1 text-green-600 hover:text-green-800 text-sm"
+                    >
+                      <Users size={16} />
+                      Atribuir
+                    </button>
+                    <button
+                      onClick={() => { setEditingEscala(escala); setIsModalOpen(true) }}
+                      className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm"
+                    >
+                      <Edit2 size={16} />
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => setDeleteConfirm(escala.id)}
+                      className="flex items-center gap-1 text-red-600 hover:text-red-800 text-sm"
+                    >
+                      <Trash2 size={16} />
+                      Desativar
+                    </button>
+                  </div>
+                )}
               </div>
 
               {expandedEscalaId === escala.id && (
@@ -366,88 +370,89 @@ export function EscalasPage() {
         />
       </Modal>
 
-      {/* Modal atribuir escala a funcionário */}
-      <Modal
-        isOpen={isAtribuirModalOpen}
-        onClose={() => {
-          setIsAtribuirModalOpen(false)
-          setAtribuirFuncionarioId(null)
-          setAtribuirDataInicio(formatDateForInput(getCompetenciaAtualInicio()))
-          setTrabalhaDiaPar(null)
-        }}
-        title="Atribuir Escala ao Funcionário"
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Funcionário *</label>
-            <Select
-              options={funcionarioOptions}
-              isClearable
-              isSearchable
-              placeholder="Selecione o funcionário..."
-              noOptionsMessage={() => 'Nenhum funcionário encontrado'}
-              onChange={opt => setAtribuirFuncionarioId(opt?.value ?? null)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Data de início *</label>
-            <input
-              type="date"
-              value={atribuirDataInicio}
-              onChange={e => setAtribuirDataInicio(e.target.value)}
-              min={historicoEscalasFuncionario && historicoEscalasFuncionario.length > 0 ? formatDateForInput(getProximaCompetenciaInicio()) : undefined}
-              className="block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-blue-500"
-            />
-            <p className="mt-1 text-xs text-slate-500">
-              {historicoEscalasFuncionario && historicoEscalasFuncionario.length > 0
-                ? `Funcionário com escala já vinculada: nova atribuição a partir de ${formatDateForInput(getProximaCompetenciaInicio())}.`
-                : `Primeira escala do funcionário: pode iniciar na competência atual, desde ${formatDateForInput(getCompetenciaAtualInicio())}.`}
-            </p>
-          </div>
-          {escalas?.find(e => e.id === atribuirEscalaId)?.tipoEscala === TipoEscala.Doze36 && (
+      {exibirAcoesEscala && (
+        <Modal
+          isOpen={isAtribuirModalOpen}
+          onClose={() => {
+            setIsAtribuirModalOpen(false)
+            setAtribuirFuncionarioId(null)
+            setAtribuirDataInicio(formatDateForInput(getCompetenciaAtualInicio()))
+            setTrabalhaDiaPar(null)
+          }}
+          title="Atribuir Escala ao Funcionário"
+        >
+          <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Ciclo 12x36 *</label>
-              <div className="flex gap-4">
-                <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="radio"
-                    name="paridade12x36"
-                    checked={trabalhaDiaPar === true}
-                    onChange={() => setTrabalhaDiaPar(true)}
-                  />
-                  Trabalha em dias pares
-                </label>
-                <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="radio"
-                    name="paridade12x36"
-                    checked={trabalhaDiaPar === false}
-                    onChange={() => setTrabalhaDiaPar(false)}
-                  />
-                  Trabalha em dias ímpares
-                </label>
-              </div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Funcionário *</label>
+              <Select
+                options={funcionarioOptions}
+                isClearable
+                isSearchable
+                placeholder="Selecione o funcionário..."
+                noOptionsMessage={() => 'Nenhum funcionário encontrado'}
+                onChange={opt => setAtribuirFuncionarioId(opt?.value ?? null)}
+              />
             </div>
-          )}
-          <div className="flex justify-end gap-3">
-            <button
-              onClick={() => setIsAtribuirModalOpen(false)}
-              className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={handleAtribuir}
-              disabled={!atribuirFuncionarioId || atribuirMutation.isPending}
-              className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {atribuirMutation.isPending ? 'Atribuindo...' : 'Atribuir'}
-            </button>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Data de início *</label>
+              <input
+                type="date"
+                value={atribuirDataInicio}
+                onChange={e => setAtribuirDataInicio(e.target.value)}
+                min={historicoEscalasFuncionario && historicoEscalasFuncionario.length > 0 ? formatDateForInput(getProximaCompetenciaInicio()) : undefined}
+                className="block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-blue-500"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                {historicoEscalasFuncionario && historicoEscalasFuncionario.length > 0
+                  ? `Funcionário com escala já vinculada: nova atribuição a partir de ${formatDateForInput(getProximaCompetenciaInicio())}.`
+                  : `Primeira escala do funcionário: pode iniciar na competência atual, desde ${formatDateForInput(getCompetenciaAtualInicio())}.`}
+              </p>
+            </div>
+            {escalas?.find(e => e.id === atribuirEscalaId)?.tipoEscala === TipoEscala.Doze36 && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Ciclo 12x36 *</label>
+                <div className="flex gap-4">
+                  <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="radio"
+                      name="paridade12x36"
+                      checked={trabalhaDiaPar === true}
+                      onChange={() => setTrabalhaDiaPar(true)}
+                    />
+                    Trabalha em dias pares
+                  </label>
+                  <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="radio"
+                      name="paridade12x36"
+                      checked={trabalhaDiaPar === false}
+                      onChange={() => setTrabalhaDiaPar(false)}
+                    />
+                    Trabalha em dias ímpares
+                  </label>
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setIsAtribuirModalOpen(false)}
+                className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleAtribuir}
+                disabled={!atribuirFuncionarioId || atribuirMutation.isPending}
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {atribuirMutation.isPending ? 'Atribuindo...' : 'Atribuir'}
+              </button>
+            </div>
           </div>
-        </div>
-      </Modal>
+        </Modal>
+      )}
 
-      {deleteConfirm && (
+      {exibirAcoesEscala && deleteConfirm && (
         <ConfirmDialog
           isOpen
           title="Desativar escala"

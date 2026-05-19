@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Edit2 } from 'lucide-react'
 import { funcionarioService } from '@/services/funcionarioService'
@@ -9,12 +9,18 @@ import { FuncionarioForm, FuncionarioFormData } from '@/components/FuncionarioFo
 import { Funcionario } from '@/types/api'
 import { Toast } from '@/components/Toast'
 
+type SortField = 'nome' | 'cargo' | 'escalaNome' | 'ativo'
+type SortDirection = 'asc' | 'desc'
+
 export function FuncionariosPage() {
   const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [sortField, setSortField] = useState<SortField>('nome')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const pageSize = 10
 
   const { data: funcionarios, isLoading, isError } = useQuery({
@@ -66,9 +72,30 @@ export function FuncionariosPage() {
     ? funcionarios?.find((f) => f.id === editingId)
     : undefined
 
-  const totalPages = Math.max(1, Math.ceil((funcionarios?.length ?? 0) / pageSize))
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, sortField, sortDirection])
+
+  const filteredFuncionarios = (funcionarios ?? []).filter((funcionario) =>
+    funcionario.nome.toLowerCase().includes(searchTerm.trim().toLowerCase())
+  )
+
+  const sortedFuncionarios = [...filteredFuncionarios].sort((a, b) => {
+    const direction = sortDirection === 'asc' ? 1 : -1
+
+    if (sortField === 'ativo') {
+      if (a.ativo === b.ativo) return a.nome.localeCompare(b.nome, 'pt-BR') * direction
+      return (a.ativo ? 1 : 0) > (b.ativo ? 1 : 0) ? direction : -direction
+    }
+
+    const valueA = (a[sortField] ?? '').toString()
+    const valueB = (b[sortField] ?? '').toString()
+    return valueA.localeCompare(valueB, 'pt-BR', { sensitivity: 'base' }) * direction
+  })
+
+  const totalPages = Math.max(1, Math.ceil(sortedFuncionarios.length / pageSize))
   const currentPageSafe = Math.min(currentPage, totalPages)
-  const paginatedFuncionarios = (funcionarios ?? []).slice(
+  const paginatedFuncionarios = sortedFuncionarios.slice(
     (currentPageSafe - 1) * pageSize,
     currentPageSafe * pageSize
   )
@@ -117,6 +144,53 @@ export function FuncionariosPage() {
         />
       ) : (
         <>
+          <div className="mb-4 flex flex-col gap-3 rounded-lg bg-white p-4 shadow-sm md:flex-row md:items-end md:justify-between">
+            <div className="w-full md:max-w-md">
+              <label className="block text-sm font-medium text-slate-700">Pesquisar funcionário</label>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Digite o nome do funcionário"
+                className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-500 focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="flex flex-col gap-3 md:flex-row md:items-end">
+              <div>
+                <label className="block text-sm font-medium text-slate-700">Ordenar por</label>
+                <select
+                  value={sortField}
+                  onChange={(event) => setSortField(event.target.value as SortField)}
+                  className="mt-1 rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-blue-500 focus:ring-blue-500"
+                >
+                  <option value="nome">Nome</option>
+                  <option value="cargo">Cargo</option>
+                  <option value="escalaNome">Escala</option>
+                  <option value="ativo">Status</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700">Direção</label>
+                <select
+                  value={sortDirection}
+                  onChange={(event) => setSortDirection(event.target.value as SortDirection)}
+                  className="mt-1 rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-blue-500 focus:ring-blue-500"
+                >
+                  <option value="asc">Crescente</option>
+                  <option value="desc">Decrescente</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {filteredFuncionarios.length === 0 ? (
+            <EmptyState
+              title="Nenhum funcionário encontrado"
+              description="Ajuste a pesquisa para localizar outro funcionário"
+            />
+          ) : (
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <table className="w-full">
               <thead className="bg-slate-50 border-b">
@@ -161,10 +235,11 @@ export function FuncionariosPage() {
               </tbody>
             </table>
           </div>
+          )}
 
           <div className="mt-4 flex items-center justify-between rounded-lg bg-white px-4 py-3 shadow-sm">
             <p className="text-sm text-slate-600">
-              Página {currentPageSafe} de {totalPages}
+              Página {currentPageSafe} de {totalPages} · {sortedFuncionarios.length} resultado(s)
             </p>
             <div className="flex gap-2">
               <button

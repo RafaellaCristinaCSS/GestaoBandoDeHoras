@@ -32,6 +32,7 @@ export function FuncionarioForm({ onSubmit, initialData, isLoading }: Funcionari
   const [showAddCargo, setShowAddCargo] = useState(false)
   const [novoCargo, setNovoCargo] = useState('')
   const selectMenuPortalTarget = typeof document !== 'undefined' ? document.body : null
+  const isEditing = Boolean(initialData)
   const defaultValues: FuncionarioFormData = initialData
     ? {
         nome: initialData.nome,
@@ -95,6 +96,17 @@ export function FuncionarioForm({ onSubmit, initialData, isLoading }: Funcionari
       value: escala.id,
       label: `${escala.nome} (${escala.cargaHorariaSemanal}h)`,
     }))
+
+  const escalaSelecionadaAtual = initialData?.escalaId && initialData.escalaNome
+    ? {
+        value: initialData.escalaId,
+        label: initialData.escalaNome,
+      }
+    : null
+
+  const escalaOptionsComAtual = escalaSelecionadaAtual && !escalaOptions.some((option) => option.value === escalaSelecionadaAtual.value)
+    ? [escalaSelecionadaAtual, ...escalaOptions]
+    : escalaOptions
 
   return (
     <form onSubmit={handleSubmit((data) => onSubmit(data as any))} className="space-y-4">
@@ -183,13 +195,14 @@ export function FuncionarioForm({ onSubmit, initialData, isLoading }: Funcionari
             render={({ field }) => (
               <Select
                 inputId="escalaId"
-                options={escalaOptions}
-                isClearable
+                options={escalaOptionsComAtual}
+                isClearable={!isEditing}
                 isSearchable
                 isLoading={isLoadingEscalas}
-                placeholder="Busque e selecione a escala"
+                isDisabled={isEditing}
+                placeholder={isEditing ? 'Escala bloqueada para edição' : 'Busque e selecione a escala'}
                 noOptionsMessage={() => 'Nenhuma escala ativa encontrada'}
-                value={escalaOptions.find((option) => option.value === field.value) ?? null}
+                value={escalaOptionsComAtual.find((option) => option.value === field.value) ?? null}
                 onChange={(option) => field.onChange(option?.value ?? 0)}
                 menuPortalTarget={selectMenuPortalTarget}
                 menuPosition="fixed"
@@ -200,6 +213,7 @@ export function FuncionarioForm({ onSubmit, initialData, isLoading }: Funcionari
             )}
           />
         </div>
+        
         {errors.escalaId && <p className="mt-1 text-sm text-red-600">{errors.escalaId.message}</p>}
       </div>
 

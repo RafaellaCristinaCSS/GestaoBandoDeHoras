@@ -6,12 +6,13 @@
 * marcar no ponto o dia de hoje MEDIA ok
 * ordem alfabetica para cargos MEDIA ok
 * pesquisar cargos MEDIA ok
-* escala precisa ser considerada ALTA (validar)
+* escala precisa ser considerada ALTA OK
+* validar horas uteis: como as horas uteis estao sendo validadas para considerar no relatorio? preciso que o calculo seja a soma das horas uteis do dia 21/mes-1 ate o dia 20/mes ALTA OK
+* Alterar os termos da planilha: Entrada planejada	Entrada real	Saída planejada	Saída real	Horas planejadas	Horas cumpridas Media OK
 
 
-* validar horas uteis: como as horas uteis estao sendo validadas para considerar no relatorio? preciso que o calculo seja a soma das horas uteis do dia 21/mes-1 ate o dia 20/mes ALTA (validar)
 * mensagem de erro e sucesso sem ser ocupando a tela MEDIA (validar)
-* Alterar os termos da planilha: Entrada planejada	Entrada real	Saída planejada	Saída real	Horas planejadas	Horas cumpridas Media (validar) 
+* adicionar ferista MEDIA
 * Auditoria ALTA
 * login ALTA
 * atalho para editar novo funcionario ALTA
