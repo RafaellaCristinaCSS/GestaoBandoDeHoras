@@ -62,7 +62,6 @@ const normalizeRegistro = (registro: RegistroPonto): RegistroPonto => {
   if (registro.feriado) return registro
 
   const isFolgaDoze36 = registro.status === 'Folga'
-  const isTrabalhoDoze36 = !isFolgaDoze36 && (registro.horasPrevistas ?? 0) > 0
 
   if (isFolgaDoze36) {
     return {
@@ -77,20 +76,7 @@ const normalizeRegistro = (registro: RegistroPonto): RegistroPonto => {
     }
   }
 
-  if (!isTrabalhoDoze36) return registro
-
-  return {
-    ...registro,
-    status: 'Presente',
-    presenca: true,
-    entrada: registro.entrada || '07:00',
-    almocInicio: registro.almocInicio || '12:00',
-    almocFim: registro.almocFim || '13:00',
-    saida: registro.saida || '19:00',
-    entradaPlanejada: '07:00',
-    saidaPlanejada: '19:00',
-    horasPrevistas: 11,
-  }
+  return registro
 }
 
 export function RegistroPontoPage() {

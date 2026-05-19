@@ -137,7 +137,17 @@ export function EscalaForm({ onSubmit, initialData, isLoading }: EscalaFormProps
             className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-blue-500"
           />
         </div>
-
+<div>
+          <label className="block text-sm font-medium text-slate-700">Tipo de escala</label>
+          <select
+            {...register('tipoEscala')}
+            className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-blue-500"
+          >
+            <option value={TipoEscala.Semanal}>Semanal</option>
+            <option value={TipoEscala.Doze36}>12x36</option>
+            <option value={TipoEscala.Personalizada}>Personalizada</option>
+          </select>
+        </div>
         <div>
           <label className="block text-sm font-medium text-slate-700">Carga horÃ¡ria semanal (h)</label>
           <input
@@ -151,18 +161,6 @@ export function EscalaForm({ onSubmit, initialData, isLoading }: EscalaFormProps
               Em 12x36, a carga Ã© calculada automaticamente ({cargaHorariaDoze36}h/semana).
             </p>
           )}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700">Tipo de escala</label>
-          <select
-            {...register('tipoEscala')}
-            className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-blue-500"
-          >
-            <option value={TipoEscala.Semanal}>Semanal</option>
-            <option value={TipoEscala.Doze36}>12x36</option>
-            <option value={TipoEscala.Personalizada}>Personalizada</option>
-          </select>
         </div>
 
         {isDoze36 && (
