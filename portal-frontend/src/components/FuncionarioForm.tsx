@@ -31,6 +31,20 @@ export function FuncionarioForm({ onSubmit, initialData, isLoading }: Funcionari
   const queryClient = useQueryClient()
   const [showAddCargo, setShowAddCargo] = useState(false)
   const [novoCargo, setNovoCargo] = useState('')
+  const selectMenuPortalTarget = typeof document !== 'undefined' ? document.body : null
+  const defaultValues: FuncionarioFormData = initialData
+    ? {
+        nome: initialData.nome,
+        cargo: initialData.cargo,
+        escalaId: initialData.escalaId ?? 0,
+        ativo: initialData.ativo,
+      }
+    : {
+        nome: '',
+        cargo: '',
+        escalaId: 0,
+        ativo: true,
+      }
 
   const { data: cargos, isLoading: isLoadingCargos } = useQuery({
     queryKey: ['cargos'],
@@ -61,12 +75,7 @@ export function FuncionarioForm({ onSubmit, initialData, isLoading }: Funcionari
 
   } = useForm<FuncionarioFormData>({
     resolver: zodResolver(funcionarioSchema) as any,
-    defaultValues: initialData || {
-      nome: '',
-      cargo: '',
-      escalaId: initialData?.escalaId ?? 0,
-      ativo: true,
-    },
+    defaultValues,
   });
 
   const handleAddCargo = () => {
@@ -118,6 +127,11 @@ export function FuncionarioForm({ onSubmit, initialData, isLoading }: Funcionari
                   noOptionsMessage={() => 'Nenhum cargo encontrado'}
                   value={cargoOptions.find((option) => option.value === field.value) ?? null}
                   onChange={(option) => field.onChange(option?.value ?? '')}
+                  menuPortalTarget={selectMenuPortalTarget}
+                  menuPosition="fixed"
+                  styles={{
+                    menuPortal: (base) => ({ ...base, zIndex: 70 }),
+                  }}
                 />
               )}
             />
@@ -173,10 +187,15 @@ export function FuncionarioForm({ onSubmit, initialData, isLoading }: Funcionari
                 isClearable
                 isSearchable
                 isLoading={isLoadingEscalas}
-                placeholder="Selecione a escala"
+                placeholder="Busque e selecione a escala"
                 noOptionsMessage={() => 'Nenhuma escala ativa encontrada'}
                 value={escalaOptions.find((option) => option.value === field.value) ?? null}
                 onChange={(option) => field.onChange(option?.value ?? 0)}
+                menuPortalTarget={selectMenuPortalTarget}
+                menuPosition="fixed"
+                styles={{
+                  menuPortal: (base) => ({ ...base, zIndex: 70 }),
+                }}
               />
             )}
           />

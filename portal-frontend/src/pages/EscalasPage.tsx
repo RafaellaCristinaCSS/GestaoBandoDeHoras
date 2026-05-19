@@ -11,7 +11,7 @@ import { Modal } from '@/components/Modal'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EscalaForm, EscalaFormData } from '@/components/EscalaForm'
 import { useToast } from '@/contexts/ToastContext'
-import { Escala, TipoEscala, CreateFuncionarioEscalaDTO } from '@/types/api'
+import { Escala, TipoEscala, TurnoEscala, CreateFuncionarioEscalaDTO } from '@/types/api'
 
 const diasSemana = ['Segunda', 'TerÃ§a', 'Quarta', 'Quinta', 'Sexta', 'SÃ¡bado', 'Domingo']
 
@@ -92,8 +92,17 @@ export function EscalasPage() {
   const createMutation = useMutation({
     mutationFn: (data: EscalaFormData) =>
       escalaService.create({
-        ...data,
+        nome: data.nome,
+        descricao: data.descricao,
+        cargaHorariaSemanal: data.cargaHorariaSemanal,
+        tipoEscala: data.tipoEscala,
         trabalhaDiaParPadrao: data.trabalhaDiaParPadrao ?? undefined,
+        turnoDoze36: data.tipoEscala === TipoEscala.Doze36
+          ? data.turnoDoze36 === 'noturno'
+            ? TurnoEscala.Noturno
+            : TurnoEscala.Diurno
+          : undefined,
+        ativa: data.ativa,
         detalhes: data.detalhes.map(d => ({
           ...d,
           horaInicio: d.horaInicio ?? '',
@@ -150,6 +159,11 @@ export function EscalasPage() {
         cargaHorariaSemanal: data.cargaHorariaSemanal,
         tipoEscala: data.tipoEscala,
         trabalhaDiaParPadrao: data.trabalhaDiaParPadrao ?? undefined,
+        turnoDoze36: data.tipoEscala === TipoEscala.Doze36
+          ? data.turnoDoze36 === 'noturno'
+            ? TurnoEscala.Noturno
+            : TurnoEscala.Diurno
+          : undefined,
         ativa: data.ativa,
       })
 

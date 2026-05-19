@@ -23,26 +23,35 @@ const toMinutes = (time?: string) => {
   return hours * 60 + minutes
 }
 
+const normalizeRangeMinutes = (start: number, end: number) => {
+  if (end <= start) {
+    return end + 24 * 60
+  }
+
+  return end
+}
+
 const formatHours = (hours: number) => `${hours.toFixed(1)}h`
 
 const getWorkedHours = (registro: RegistroPonto) => {
   const entrada = toMinutes(registro.entrada)
   const saida = toMinutes(registro.saida)
 
-  if (entrada == null || saida == null || saida <= entrada) return 0
+  if (entrada == null || saida == null) return 0
 
-  let total = saida - entrada
+  const saidaNormalizada = normalizeRangeMinutes(entrada, saida)
+  let total = saidaNormalizada - entrada
   const almocoInicio = toMinutes(registro.almocInicio)
   const almocoFim = toMinutes(registro.almocFim)
 
-  if (
-    almocoInicio != null &&
-    almocoFim != null &&
-    almocoFim > almocoInicio &&
-    almocoInicio >= entrada &&
-    almocoFim <= saida
-  ) {
-    total -= almocoFim - almocoInicio
+  if (almocoInicio != null && almocoFim != null) {
+    const almocoInicioNormalizado = almocoInicio < entrada ? almocoInicio + 24 * 60 : almocoInicio
+    const almocoFimBase = almocoFim < entrada ? almocoFim + 24 * 60 : almocoFim
+    const almocoFimNormalizado = normalizeRangeMinutes(almocoInicioNormalizado, almocoFimBase)
+
+    if (almocoInicioNormalizado >= entrada && almocoFimNormalizado <= saidaNormalizada) {
+      total -= almocoFimNormalizado - almocoInicioNormalizado
+    }
   }
 
   return total / 60

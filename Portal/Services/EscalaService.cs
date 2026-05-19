@@ -27,6 +27,7 @@ namespace Portal.Services
             CargaHorariaSemanal = e.CargaHorariaSemanal,
             TipoEscala = e.TipoEscala,
             TrabalhaDiaParPadrao = e.TrabalhaDiaParPadrao,
+            TurnoDoze36 = e.TurnoDoze36,
             Ativa = e.Ativa,
             CreatedAt = e.CreatedAt,
             Detalhes = e.Detalhes.Select(d => ToDetalheDto(d)).ToList()
@@ -70,6 +71,7 @@ namespace Portal.Services
                 CargaHorariaSemanal = dto.CargaHorariaSemanal,
                 TipoEscala = dto.TipoEscala,
                 TrabalhaDiaParPadrao = dto.TipoEscala == TipoEscala.Doze36 ? dto.TrabalhaDiaParPadrao : null,
+                TurnoDoze36 = dto.TipoEscala == TipoEscala.Doze36 ? dto.TurnoDoze36 : null,
                 Ativa = dto.Ativa,
                 CreatedAt = DateTime.UtcNow
             };
@@ -106,6 +108,8 @@ namespace Portal.Services
             if (dto.TipoEscala != null) entity.TipoEscala = dto.TipoEscala.Value;
             if (dto.TrabalhaDiaParPadrao != null || entity.TipoEscala != TipoEscala.Doze36)
                 entity.TrabalhaDiaParPadrao = entity.TipoEscala == TipoEscala.Doze36 ? dto.TrabalhaDiaParPadrao : null;
+            if (dto.TurnoDoze36 != null || entity.TipoEscala != TipoEscala.Doze36)
+                entity.TurnoDoze36 = entity.TipoEscala == TipoEscala.Doze36 ? dto.TurnoDoze36 : null;
             if (dto.Ativa != null) entity.Ativa = dto.Ativa.Value;
 
             await _repository.UpdateAsync(entity);

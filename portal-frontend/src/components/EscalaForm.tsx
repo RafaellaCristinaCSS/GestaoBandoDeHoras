@@ -2,7 +2,9 @@
 import { useFieldArray, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { Escala, TipoEscala } from '@/types/api'
+import { Escala, TipoEscala, TurnoEscala } from '@/types/api'
+
+type TurnoDoze36 = 'diurno' | 'noturno'
 
 const detalheSchema = z.object({
   diaSemana: z.coerce.number().min(0).max(6),
@@ -20,6 +22,7 @@ const escalaSchema = z.object({
   cargaHorariaSemanal: z.coerce.number().min(0),
   tipoEscala: z.coerce.number(),
   trabalhaDiaParPadrao: z.boolean().nullable().optional(),
+  turnoDoze36: z.enum(['diurno', 'noturno']).default('diurno'),
   ativa: z.boolean(),
   detalhes: z.array(detalheSchema),
 })
@@ -40,18 +43,30 @@ const criarDetalhesSemanaisPadrao = () => diasSemana.map((_, i) => ({
   folga: i >= 5,
 }))
 
-const criarDetalhesDoze36 = (trabalhaDiaParPadrao?: boolean | null) =>
+const inferirTurnoDoze36 = (escala?: Escala): TurnoDoze36 => {
+  if (escala?.turnoDoze36 === TurnoEscala.Noturno) return 'noturno'
+  if (escala?.turnoDoze36 === TurnoEscala.Diurno) return 'diurno'
+
+  const detalheTrabalho = escala?.detalhes.find((detalhe) => !detalhe.folga && detalhe.horasPrevistas > 0)
+  return detalheTrabalho?.horaInicio === '19:00' ? 'noturno' : 'diurno'
+}
+
+const criarDetalhesDoze36 = (trabalhaDiaParPadrao?: boolean | null, turnoDoze36: TurnoDoze36 = 'diurno') =>
   diasSemana.map((_, index) => {
     const diaNumero = index + 1
     const diaPar = diaNumero % 2 === 0
     const trabalhaNesseDia = trabalhaDiaParPadrao == null ? !diaPar : trabalhaDiaParPadrao ? diaPar : !diaPar
+    const horaInicio = turnoDoze36 === 'noturno' ? '19:00' : '07:00'
+    const horaFim = turnoDoze36 === 'noturno' ? '07:00' : '19:00'
+    const horaAlmocoInicio = turnoDoze36 === 'noturno' ? '00:00' : '12:00'
+    const horaAlmocoFim = turnoDoze36 === 'noturno' ? '01:00' : '13:00'
 
     return {
       diaSemana: index,
-      horaInicio: trabalhaNesseDia ? '07:00' : '00:00',
-      horaFim: trabalhaNesseDia ? '19:00' : '00:00',
-      horaAlmocoInicio: trabalhaNesseDia ? '12:00' : '',
-      horaAlmocoFim: trabalhaNesseDia ? '13:00' : '',
+      horaInicio: trabalhaNesseDia ? horaInicio : '00:00',
+      horaFim: trabalhaNesseDia ? horaFim : '00:00',
+      horaAlmocoInicio: trabalhaNesseDia ? horaAlmocoInicio : '',
+      horaAlmocoFim: trabalhaNesseDia ? horaAlmocoFim : '',
       horasPrevistas: trabalhaNesseDia ? 11 : 0,
       folga: !trabalhaNesseDia,
     }
@@ -73,6 +88,7 @@ export function EscalaForm({ onSubmit, initialData, isLoading }: EscalaFormProps
           cargaHorariaSemanal: initialData.cargaHorariaSemanal,
           tipoEscala: initialData.tipoEscala,
           trabalhaDiaParPadrao: initialData.trabalhaDiaParPadrao ?? null,
+          turnoDoze36: inferirTurnoDoze36(initialData),
           ativa: initialData.ativa,
           detalhes: initialData.detalhes.map(d => ({
             diaSemana: d.diaSemana,
@@ -90,6 +106,7 @@ export function EscalaForm({ onSubmit, initialData, isLoading }: EscalaFormProps
           cargaHorariaSemanal: 44,
           tipoEscala: TipoEscala.Semanal,
           trabalhaDiaParPadrao: null,
+          turnoDoze36: 'diurno',
           ativa: true,
           detalhes: criarDetalhesSemanaisPadrao(),
         },
@@ -99,6 +116,7 @@ export function EscalaForm({ onSubmit, initialData, isLoading }: EscalaFormProps
 
   const tipoEscala = Number(watch('tipoEscala'))
   const trabalhaDiaParPadrao = watch('trabalhaDiaParPadrao')
+  const turnoDoze36 = watch('turnoDoze36')
   const detalhes = watch('detalhes')
   const isDoze36 = tipoEscala === TipoEscala.Doze36
 
@@ -111,11 +129,11 @@ export function EscalaForm({ onSubmit, initialData, isLoading }: EscalaFormProps
   useEffect(() => {
     if (isDoze36) {
       setValue('cargaHorariaSemanal', cargaHorariaDoze36, { shouldValidate: true })
-      setValue('detalhes', criarDetalhesDoze36(trabalhaDiaParPadrao), { shouldValidate: true })
+      setValue('detalhes', criarDetalhesDoze36(trabalhaDiaParPadrao, turnoDoze36), { shouldValidate: true })
     } else if (trabalhaDiaParPadrao != null) {
       setValue('trabalhaDiaParPadrao', null, { shouldValidate: true })
     }
-  }, [isDoze36, cargaHorariaDoze36, trabalhaDiaParPadrao, setValue])
+  }, [isDoze36, cargaHorariaDoze36, trabalhaDiaParPadrao, turnoDoze36, setValue])
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -164,28 +182,63 @@ export function EscalaForm({ onSubmit, initialData, isLoading }: EscalaFormProps
         </div>
 
         {isDoze36 && (
-          <div>
+          <div className="col-span-2 space-y-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
             <label className="block text-sm font-medium text-slate-700 mb-2">Padrão 12x36</label>
-            <div className="flex gap-4">
-              <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="radio"
-                  name="trabalhaDiaParPadrao"
-                  checked={trabalhaDiaParPadrao === true}
-                  onChange={() => setValue('trabalhaDiaParPadrao', true, { shouldValidate: true })}
-                />
-                Par
-              </label>
-              <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="radio"
-                  name="trabalhaDiaParPadrao"
-                  checked={trabalhaDiaParPadrao === false}
-                  onChange={() => setValue('trabalhaDiaParPadrao', false, { shouldValidate: true })}
-                />
-                Ímpar
-              </label>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <div className="mb-2 text-sm font-medium text-slate-700">Dias de trabalho</div>
+                <div className="flex gap-4">
+                  <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="radio"
+                      name="trabalhaDiaParPadrao"
+                      checked={trabalhaDiaParPadrao === true}
+                      onChange={() => setValue('trabalhaDiaParPadrao', true, { shouldValidate: true })}
+                    />
+                    Par
+                  </label>
+                  <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="radio"
+                      name="trabalhaDiaParPadrao"
+                      checked={trabalhaDiaParPadrao === false}
+                      onChange={() => setValue('trabalhaDiaParPadrao', false, { shouldValidate: true })}
+                    />
+                    Ímpar
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-2 text-sm font-medium text-slate-700">Turno</div>
+                <div className="flex gap-4">
+                  <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="radio"
+                      name="turnoDoze36"
+                      checked={turnoDoze36 === 'diurno'}
+                      onChange={() => setValue('turnoDoze36', 'diurno', { shouldValidate: true })}
+                    />
+                    Diurna
+                  </label>
+                  <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="radio"
+                      name="turnoDoze36"
+                      checked={turnoDoze36 === 'noturno'}
+                      onChange={() => setValue('turnoDoze36', 'noturno', { shouldValidate: true })}
+                    />
+                    Noturna
+                  </label>
+                </div>
+              </div>
             </div>
+
+            <p className="text-xs text-slate-500">
+              {turnoDoze36 === 'noturno'
+                ? 'Turno noturno: 19:00 às 07:00 com almoço de 00:00 às 01:00.'
+                : 'Turno diurno: 07:00 às 19:00 com almoço de 12:00 às 13:00.'}
+            </p>
           </div>
         )}
 

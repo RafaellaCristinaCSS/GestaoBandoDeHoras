@@ -37,6 +37,11 @@ export enum TipoEscala {
   Personalizada = 2,
 }
 
+export enum TurnoEscala {
+  Diurno = 0,
+  Noturno = 1,
+}
+
 export interface EscalaDetalhe {
   id: number
   escalaId: number
@@ -56,6 +61,7 @@ export interface Escala {
   cargaHorariaSemanal: number
   tipoEscala: TipoEscala
   trabalhaDiaParPadrao?: boolean
+  turnoDoze36?: TurnoEscala
   ativa: boolean
   createdAt: string
   detalhes: EscalaDetalhe[]
@@ -67,6 +73,7 @@ export interface CreateEscalaDTO {
   cargaHorariaSemanal: number
   tipoEscala: TipoEscala
   trabalhaDiaParPadrao?: boolean
+  turnoDoze36?: TurnoEscala
   ativa: boolean
   detalhes: CreateEscalaDetalheDTO[]
 }
@@ -77,6 +84,7 @@ export interface UpdateEscalaDTO {
   cargaHorariaSemanal?: number
   tipoEscala?: TipoEscala
   trabalhaDiaParPadrao?: boolean
+  turnoDoze36?: TurnoEscala
   ativa?: boolean
 }
 

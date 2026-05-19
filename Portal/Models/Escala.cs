@@ -14,6 +14,12 @@ namespace Portal.Models
         Personalizada = 2
     }
 
+    public enum TurnoEscala
+    {
+        Diurno = 0,
+        Noturno = 1
+    }
+
     /// <summary>
     /// Template de jornada de trabalho (ex.: "44h semanais segunda a sexta").
     /// Funcionários são vinculados a uma escala via FuncionarioEscala.
@@ -37,6 +43,11 @@ namespace Portal.Models
         /// ou ímpares (false). Pode ser sobrescrito no vínculo com o funcionário.
         /// </summary>
         public bool? TrabalhaDiaParPadrao { get; set; }
+
+        /// <summary>
+        /// Para escala 12x36, define se o turno padrão é diurno ou noturno.
+        /// </summary>
+        public TurnoEscala? TurnoDoze36 { get; set; }
 
         public bool Ativa { get; set; } = true;
 
