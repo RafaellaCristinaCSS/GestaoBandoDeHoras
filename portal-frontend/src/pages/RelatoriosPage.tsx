@@ -151,23 +151,24 @@ export function RelatoriosPage() {
         activeFuncionarios.map(async (funcionario) => {
           const registros = await registroPontoService.getAll(funcionario.id, undefined, undefined, startDate, endDate)
 
-          const faltas = registros.filter((registro) => registro.status === 'Falta')
+          // Faltas: não considerar feriado/atestado sem registro como falta
+          const faltas = registros.filter((registro) => registro.status === 'Falta' && !registro.feriado && !registro.atestadoMedico)
 
           const totals = registros.reduce(
             (acc, registro) => {
-              const horasPlanejadasDoDia = registro.status === 'Feriado' ? 0 : (registro.horasPrevistas ?? 0)
-              const horasCumpridasDoDia = registro.status === 'Feriado'
-                ? getWorkedHours(registro)
-                : registro.presenca
-                  ? getWorkedHours(registro)
-                  : 0
-
+              // Jornada prevista de feriado/atestado é sempre 0
+              const horasPlanejadasDoDia = (registro.feriado || registro.atestadoMedico) ? 0 : (registro.horasPrevistas ?? 0)
+              // Em feriado/atestado, todas as horas registradas são extras
+              const horasCumpridasDoDia = getWorkedHours(registro)
               acc.horasPlanejadas += horasPlanejadasDoDia
               acc.horasCumpridas += horasCumpridasDoDia
               return acc
             },
             { horasPlanejadas: 0, horasCumpridas: 0 }
           )
+
+          // Saldo: em feriado/atestado, nunca gera atraso; se houver registro, é extra
+          // O saldo global já reflete isso pois horasPlanejadas de feriado/atestado é 0
 
           return {
             funcionario,

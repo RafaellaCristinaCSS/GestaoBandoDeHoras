@@ -12,6 +12,7 @@ namespace Portal.DTOs
         public string? Saida { get; set; }
         public bool Presenca { get; set; } = true;
         public bool Feriado { get; set; } = false;
+        public bool AtestadoMedico { get; set; } = false;
         public string? Observacao { get; set; }
 
         public int CreatedByUserId { get; set; }
@@ -28,6 +29,7 @@ namespace Portal.DTOs
         public string? Saida { get; set; }
         public bool? Presenca { get; set; }
         public bool? Feriado { get; set; }
+        public bool? AtestadoMedico { get; set; }
         public string? Observacao { get; set; }
 
         public int? UpdatedByUserId { get; set; }
@@ -52,6 +54,7 @@ namespace Portal.DTOs
 
         public bool Presenca { get; set; }
         public bool Feriado { get; set; }
+        public bool AtestadoMedico { get; set; }
         public string? Observacao { get; set; }
         public string Status { get; set; } = "Falta";
 

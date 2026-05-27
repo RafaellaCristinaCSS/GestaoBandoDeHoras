@@ -158,8 +158,11 @@ namespace Portal.Services
 
         private static string BuildStatus(RegistroPonto e)
         {
+
             if (e.Feriado)
                 return "Feriado";
+            if (e.AtestadoMedico)
+                return "Atestado Médico";
 
             var detalhe = ResolveDetalheParaRegistro(e);
             if (detalhe?.Folga == true && !HasMarcacaoReal(e))
@@ -176,6 +179,13 @@ namespace Portal.Services
             // Usa a escala salva no próprio registro (histórico imutável)
             var detalhe = ResolveDetalheParaRegistro(e);
 
+            // Regra de feriado/atestado: jornada prevista = 0, saldo = 0 se não houver registro, horas registradas são extras
+            decimal? horasPrevistas = detalhe?.Folga == true ? 0 : detalhe?.HorasPrevistas;
+            if (e.Feriado || e.AtestadoMedico)
+            {
+                horasPrevistas = 0;
+            }
+
             return new RegistroPontoReadDto
             {
                 Id = e.Id,
@@ -187,9 +197,10 @@ namespace Portal.Services
                 Saida = e.HoraSaida,
                 EntradaPlanejada = detalhe?.Folga == true ? null : detalhe?.HoraInicio,
                 SaidaPlanejada = detalhe?.Folga == true ? null : detalhe?.HoraFim,
-                HorasPrevistas = detalhe?.Folga == true ? 0 : detalhe?.HorasPrevistas,
+                HorasPrevistas = horasPrevistas,
                 Presenca = e.Presenca,
                 Feriado = e.Feriado,
+                AtestadoMedico = e.AtestadoMedico,
                 Observacao = e.Observacao,
                 Status = BuildStatus(e),
                 EscalaId = e.EscalaId,
@@ -344,12 +355,13 @@ namespace Portal.Services
             entity.HoraSaida = dto.Saida ?? string.Empty;
             entity.Presenca = dto.Presenca;
             entity.Feriado = dto.Feriado;
+            entity.AtestadoMedico = dto.AtestadoMedico;
             entity.Observacao = dto.Observacao ?? string.Empty;
             // Salva referências históricas imutáveis da escala vigente na data
             entity.EscalaId = vincEscala?.EscalaId;
             entity.FuncionarioEscalaId = vincEscala?.Id;
 
-            if (entity.Feriado)
+            if (entity.Feriado || entity.AtestadoMedico)
             {
                 entity.HoraEntrada = string.Empty;
                 entity.HoraAlmocoInicio = string.Empty;
@@ -409,8 +421,10 @@ namespace Portal.Services
                 entity.Presenca = dto.Presenca ?? entity.Presenca;
             if (dto.Feriado != null)
                 entity.Feriado = dto.Feriado ?? entity.Feriado;
+            if (dto.AtestadoMedico != null)
+                entity.AtestadoMedico = dto.AtestadoMedico ?? entity.AtestadoMedico;
 
-            if (dto.Feriado == true)
+            if (dto.Feriado == true || dto.AtestadoMedico == true)
             {
                 entity.HoraEntrada = string.Empty;
                 entity.HoraAlmocoInicio = string.Empty;

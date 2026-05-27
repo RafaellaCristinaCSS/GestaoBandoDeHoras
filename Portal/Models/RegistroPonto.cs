@@ -17,6 +17,7 @@ namespace Portal.Models
         public string HoraSaida { get; set; }
         public bool Presenca { get; set; }
         public bool Feriado { get; set; }
+        public bool AtestadoMedico { get; set; }
         public string Observacao { get; set; }
 
         /// <summary>Referência histórica da escala usada neste registro. NÃO muda com trocas futuras.</summary>

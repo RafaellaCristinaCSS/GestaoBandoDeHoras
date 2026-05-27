@@ -131,6 +131,7 @@ export interface CreateFuncionarioEscalaDTO {
 }
 
 // Registro de Ponto
+
 export interface RegistroPonto {
   id: number
   funcionarioId: number
@@ -144,11 +145,13 @@ export interface RegistroPonto {
   horasPrevistas?: number
   presenca: boolean
   feriado: boolean
+  atestadoMedico: boolean
   observacao?: string
   status: string
   horasTrabalhadas?: number
   atraso?: number
 }
+
 
 export interface CreateRegistroPontoDTO {
   funcionarioId: number
@@ -159,6 +162,7 @@ export interface CreateRegistroPontoDTO {
   saida?: string
   presenca: boolean
   feriado?: boolean
+  atestadoMedico?: boolean
   observacao?: string
 }
 
