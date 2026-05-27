@@ -17,5 +17,16 @@ namespace Portal.Utils
 
             return (dataInicio, dataFim);
         }
+
+        public static (DateTime DataInicio, DateTime DataFim) NormalizarPeriodo(DateTime dataInicio, DateTime dataFim)
+        {
+            var inicio = DateTime.SpecifyKind(dataInicio.Date, DateTimeKind.Utc);
+            var fim = DateTime.SpecifyKind(dataFim.Date, DateTimeKind.Utc).AddDays(1).AddTicks(-1);
+
+            if (fim < inicio)
+                throw new ArgumentException("A data inicial não pode ser maior que a data final.");
+
+            return (inicio, fim);
+        }
     }
 }

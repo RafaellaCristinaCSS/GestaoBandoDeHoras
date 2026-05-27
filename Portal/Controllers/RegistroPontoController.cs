@@ -19,10 +19,22 @@ namespace Portal.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll([FromQuery] int? funcionarioId = null, [FromQuery] int? mes = null, [FromQuery] int? ano = null)
+        public async Task<IActionResult> GetAll(
+            [FromQuery] int? funcionarioId = null,
+            [FromQuery] int? mes = null,
+            [FromQuery] int? ano = null,
+            [FromQuery] DateTime? dataInicio = null,
+            [FromQuery] DateTime? dataFim = null)
         {
-            var result = await _service.GetAllAsync(funcionarioId, mes, ano);
-            return Ok(result);
+            try
+            {
+                var result = await _service.GetAllAsync(funcionarioId, mes, ano, dataInicio, dataFim);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         [HttpGet("{id}")]

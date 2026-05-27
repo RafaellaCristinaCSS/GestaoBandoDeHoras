@@ -209,14 +209,23 @@ namespace Portal.Services
             _funcionarioEscalaRepository = funcionarioEscalaRepository;
         }
 
-        public async Task<IEnumerable<RegistroPontoReadDto>> GetAllAsync(int? funcionarioId = null, int? mes = null, int? ano = null)
+        public async Task<IEnumerable<RegistroPontoReadDto>> GetAllAsync(int? funcionarioId = null, int? mes = null, int? ano = null, DateTime? dataInicio = null, DateTime? dataFim = null)
         {
-            if (funcionarioId.HasValue && mes.HasValue && ano.HasValue)
-            {
-                var registrosMes = (await _repository.GetFilteredAsync(funcionarioId, mes, ano)).ToList();
-                var (dataInicio, dataFim) = CompetenciaHelper.ObterPeriodoCompetencia(mes.Value, ano.Value);
+            if (dataInicio.HasValue != dataFim.HasValue)
+                throw new ArgumentException("Informe data inicial e data final para filtrar por período.");
 
-                for (var dataAtual = dataInicio; dataAtual <= dataFim; dataAtual = dataAtual.AddDays(1))
+            var periodo = dataInicio.HasValue && dataFim.HasValue
+                ? CompetenciaHelper.NormalizarPeriodo(dataInicio.Value, dataFim.Value)
+                : mes.HasValue && ano.HasValue
+                    ? CompetenciaHelper.ObterPeriodoCompetencia(mes.Value, ano.Value)
+                    : ((DateTime DataInicio, DateTime DataFim)?)null;
+
+            if (funcionarioId.HasValue && periodo.HasValue)
+            {
+                var registrosMes = (await _repository.GetFilteredAsync(funcionarioId, mes, ano, dataInicio, dataFim)).ToList();
+                var (periodoInicio, periodoFim) = periodo.Value;
+
+                for (var dataAtual = periodoInicio; dataAtual <= periodoFim; dataAtual = dataAtual.AddDays(1))
                 {
                     var data = new DateTime(
                         dataAtual.Year,
@@ -261,7 +270,7 @@ namespace Portal.Services
                 await _repository.SaveChangesAsync();
             }
 
-            var list = (await _repository.GetFilteredAsync(funcionarioId, mes, ano)).ToList();
+            var list = (await _repository.GetFilteredAsync(funcionarioId, mes, ano, dataInicio, dataFim)).ToList();
 
             var atualizouRegistrosExistentes = false;
             foreach (var registro in list)

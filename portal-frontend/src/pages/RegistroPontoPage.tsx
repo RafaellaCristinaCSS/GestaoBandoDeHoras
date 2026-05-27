@@ -8,10 +8,22 @@ import { EmptyState } from '@/components/EmptyState'
 import { Toast } from '@/components/Toast'
 import { RegistroPonto } from '@/types/api'
 
+const formatDateForInput = (date: Date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 const parseLocalDate = (isoDate: string) => {
   const [year, month, day] = isoDate.split('-').map(Number)
   return new Date(year, month - 1, day)
 }
+
+const getDefaultPeriod = (reference = new Date()) => ({
+  startDate: formatDateForInput(new Date(reference.getFullYear(), reference.getMonth() - 1, 21)),
+  endDate: formatDateForInput(new Date(reference.getFullYear(), reference.getMonth(), 20)),
+})
 
 const isToday = (isoDate: string) => {
   const data = parseLocalDate(isoDate)
@@ -90,12 +102,14 @@ const normalizeRegistro = (registro: RegistroPonto): RegistroPonto => {
 
 export function RegistroPontoPage() {
   const queryClient = useQueryClient()
+  const defaultPeriod = getDefaultPeriod()
   const [selectedFuncionarioId, setSelectedFuncionarioId] = useState<number | null>(null)
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const [startDate, setStartDate] = useState(defaultPeriod.startDate)
+  const [endDate, setEndDate] = useState(defaultPeriod.endDate)
   // const [editingId, setEditingId] = useState<number | null>(null)
   // const [editingField, setEditingField] = useState<string | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const isDateRangeInvalid = Boolean(startDate && endDate && parseLocalDate(startDate) > parseLocalDate(endDate))
 
   const { data: funcionarios, isLoading: isLoadingFunc } = useQuery({
     queryKey: ['funcionarios'],
@@ -103,12 +117,12 @@ export function RegistroPontoPage() {
   })
 
   const { data: registros, isLoading: isLoadingRegistros } = useQuery({
-    queryKey: ['registros-ponto', selectedFuncionarioId, selectedMonth, selectedYear],
+    queryKey: ['registros-ponto', selectedFuncionarioId, startDate, endDate],
     queryFn: () =>
       selectedFuncionarioId
-        ? registroPontoService.getAll(selectedFuncionarioId, selectedMonth, selectedYear)
+        ? registroPontoService.getAll(selectedFuncionarioId, undefined, undefined, startDate, endDate)
         : Promise.resolve([]),
-    enabled: !!selectedFuncionarioId,
+    enabled: !!selectedFuncionarioId && !isDateRangeInvalid,
   })
 
   const updateMutation = useMutation({
@@ -116,7 +130,7 @@ export function RegistroPontoPage() {
       registroPontoService.update(id, data as any),
     onSuccess: async () => {
       await queryClient.invalidateQueries({
-        queryKey: ['registros-ponto', selectedFuncionarioId, selectedMonth, selectedYear],
+        queryKey: ['registros-ponto', selectedFuncionarioId, startDate, endDate],
       })
       await queryClient.invalidateQueries({
         queryKey: ['relatorio-geral'],
@@ -218,38 +232,35 @@ export function RegistroPontoPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Mês *</label>
-              <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(Number(e.target.value))}
+              <label className="block text-sm font-medium text-slate-700 mb-2">Data início *</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
-              >
-                {[...Array(12)].map((_, i) => (
-                  <option key={i + 1} value={i + 1}>
-                    {new Date(0, i).toLocaleString('pt-BR', { month: 'long' })}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Ano *</label>
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(Number(e.target.value))}
+              <label className="block text-sm font-medium text-slate-700 mb-2">Data fim *</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
-              >
-                {[...Array(3)].map((_, i) => {
-                  const year = new Date().getFullYear() - 1 + i
-                  return (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  )
-                })}
-              </select>
+              />
             </div>
           </div>
+
+          <div className="mt-3 text-sm text-slate-600">
+            Período padrão: 21 do mês anterior até 20 do mês atual. Você pode alterar conforme a necessidade.
+          </div>
+
+          {isDateRangeInvalid && (
+            <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              A data inicial não pode ser maior que a data final.
+            </div>
+          )}
         </div>
       </div>
 
@@ -260,7 +271,7 @@ export function RegistroPontoPage() {
           ) : !registros || registros.length === 0 ? (
             <EmptyState
               title="Nenhum registro de ponto"
-              description={`Nenhum registro para ${selectedFuncionario.nome} em ${selectedMonth}/${selectedYear}`}
+              description={`Nenhum registro para ${selectedFuncionario.nome} entre ${parseLocalDate(startDate).toLocaleDateString('pt-BR')} e ${parseLocalDate(endDate).toLocaleDateString('pt-BR')}`}
             />
           ) : (
             <div className="rounded-lg bg-white shadow">

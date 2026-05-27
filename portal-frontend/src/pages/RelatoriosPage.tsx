@@ -9,6 +9,20 @@ import { EmptyState } from '@/components/EmptyState'
 import { useToast } from '@/contexts/ToastContext'
 import { Funcionario, RegistroPonto } from '@/types/api'
 
+const formatDateForInput = (date: Date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const formatDateLabel = (date: string) => parseLocalDate(date).toLocaleDateString('pt-BR')
+
+const getDefaultReportPeriod = (reference = new Date()) => ({
+  dataInicio: formatDateForInput(new Date(reference.getFullYear(), reference.getMonth() - 1, 21)),
+  dataFim: formatDateForInput(new Date(reference.getFullYear(), reference.getMonth(), 20)),
+})
+
 const parseLocalDate = (isoDate: string) => {
   const [year, month, day] = isoDate.split('-').map(Number)
   return new Date(year, month - 1, day)
@@ -107,8 +121,9 @@ type ExportSections = {
 
 export function RelatoriosPage() {
   const { showToast } = useToast()
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const defaultPeriod = getDefaultReportPeriod()
+  const [startDate, setStartDate] = useState(defaultPeriod.dataInicio)
+  const [endDate, setEndDate] = useState(defaultPeriod.dataFim)
   const [isExporting, setIsExporting] = useState(false)
   const [exportSections, setExportSections] = useState<ExportSections>({
     faltas: true,
@@ -119,6 +134,7 @@ export function RelatoriosPage() {
   const [delaysPage, setDelaysPage] = useState(1)
   const [extrasPage, setExtrasPage] = useState(1)
   const pageSize = 10
+  const isDateRangeInvalid = Boolean(startDate && endDate && parseLocalDate(startDate) > parseLocalDate(endDate))
 
   const { data: funcionarios, isLoading: isLoadingFunc } = useQuery({
     queryKey: ['funcionarios'],
@@ -130,15 +146,15 @@ export function RelatoriosPage() {
   const { data: reportData, isLoading: isLoadingReport } = useQuery<EmployeeReport[]>({
     queryKey: [
       'relatorio-geral',
-      selectedMonth,
-      selectedYear,
+      startDate,
+      endDate,
       activeFuncionarios.map((funcionario) => funcionario.id).join(','),
     ],
-    enabled: activeFuncionarios.length > 0,
+    enabled: activeFuncionarios.length > 0 && Boolean(startDate) && Boolean(endDate) && !isDateRangeInvalid,
     queryFn: async () => {
       const reports = await Promise.all(
         activeFuncionarios.map(async (funcionario) => {
-          const registros = await registroPontoService.getAll(funcionario.id, selectedMonth, selectedYear)
+          const registros = await registroPontoService.getAll(funcionario.id, undefined, undefined, startDate, endDate)
 
           const faltas = registros.filter((registro) => registro.status === 'Falta')
 
@@ -247,7 +263,6 @@ export function RelatoriosPage() {
 
     try {
       setIsExporting(true)
-      const monthName = new Date(0, selectedMonth - 1).toLocaleString('pt-BR', { month: 'long' })
       const workbook = XLSX.utils.book_new()
 
       const worksheet = XLSX.utils.aoa_to_sheet([])
@@ -381,7 +396,7 @@ export function RelatoriosPage() {
         rowIndex += 1
       }
 
-      appendMergedTitle(`Relatório de Horas - ${monthName} / ${selectedYear}`, titleStyle)
+      appendMergedTitle(`Relatório de Horas - ${formatDateLabel(startDate)} a ${formatDateLabel(endDate)}`, titleStyle)
       appendMergedTitle(`Gerado em ${new Date().toLocaleString('pt-BR')}`, subtitleStyle)
       appendRow([])
 
@@ -453,7 +468,7 @@ export function RelatoriosPage() {
 
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Relatorio')
 
-      const fileName = `Relatorio_Geral_${monthName}_${selectedYear}.ods`
+      const fileName = `Relatorio_Geral_${startDate}_a_${endDate}.ods`
       XLSX.writeFile(workbook, fileName, { bookType: 'ods' })
 
       showToast('Relatório exportado com sucesso!', 'success')
@@ -504,40 +519,27 @@ export function RelatoriosPage() {
         <div className="mb-6 rounded-lg bg-white p-6 shadow">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Mês *</label>
-              <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(Number(e.target.value))}
+              <label className="mb-2 block text-sm font-medium text-slate-700">Data início *</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
-              >
-                {[...Array(12)].map((_, index) => (
-                  <option key={index + 1} value={index + 1}>
-                    {new Date(0, index).toLocaleString('pt-BR', { month: 'long' })}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Ano *</label>
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(Number(e.target.value))}
+              <label className="mb-2 block text-sm font-medium text-slate-700">Data fim *</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
-              >
-                {[...Array(3)].map((_, index) => {
-                  const year = new Date().getFullYear() - 1 + index
-                  return (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  )
-                })}
-              </select>
+              />
             </div>
             <div className="flex items-end">
               <button
                 onClick={handleExportExcel}
-                disabled={isLoadingReport || isExporting || monthly.length === 0}
+                disabled={isLoadingReport || isExporting || monthly.length === 0 || isDateRangeInvalid}
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:bg-slate-400"
               >
                 <Download size={20} />
@@ -545,6 +547,16 @@ export function RelatoriosPage() {
               </button>
             </div>
           </div>
+
+          <div className="mt-3 text-sm text-slate-600">
+            Período padrão: 21 do mês anterior até 20 do mês atual. Você pode alterar conforme a necessidade.
+          </div>
+
+          {isDateRangeInvalid && (
+            <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              A data inicial não pode ser maior que a data final.
+            </div>
+          )}
 
           <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
             <p className="mb-3 text-sm font-semibold text-slate-700">Personalizar planilha exportada</p>

@@ -2,8 +2,14 @@ import api from './api'
 import { RegistroPonto, CreateRegistroPontoDTO } from '@/types/api'
 
 export const registroPontoService = {
-  getAll: async (funcionarioId?: number, mes?: number, ano?: number): Promise<RegistroPonto[]> => {
-    const params = { funcionarioId, mes, ano }
+  getAll: async (
+    funcionarioId?: number,
+    mes?: number,
+    ano?: number,
+    dataInicio?: string,
+    dataFim?: string
+  ): Promise<RegistroPonto[]> => {
+    const params = { funcionarioId, mes, ano, dataInicio, dataFim }
     const response = await api.get('/registro-ponto', { params })
     return response.data
   },
