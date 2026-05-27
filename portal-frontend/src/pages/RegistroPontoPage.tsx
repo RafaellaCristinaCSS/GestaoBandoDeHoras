@@ -545,6 +545,7 @@ export function RegistroPontoPage() {
                                 <option value="Presente">Presente</option>
                                 <option value="Falta">Falta</option>
                                 <option value="Feriado">Feriado</option>
+                                <option value="Atestado Médico">Atestado Médico</option>
                               </select>
                             )}
                           </td>
