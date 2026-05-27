@@ -158,6 +158,23 @@ export function RegistroPontoPage() {
         id: registroId,
         data: {
           feriado: true,
+          atestadoMedico: false,
+          presenca: false,
+          entrada: '',
+          almocInicio: '',
+          almocFim: '',
+          saida: '',
+        },
+      })
+      return
+    }
+
+    if (status === 'Atestado Médico') {
+      updateMutation.mutate({
+        id: registroId,
+        data: {
+          feriado: false,
+          atestadoMedico: true,
           presenca: false,
           entrada: '',
           almocInicio: '',
@@ -173,6 +190,7 @@ export function RegistroPontoPage() {
         id: registroId,
         data: {
           feriado: false,
+          atestadoMedico: false,
           presenca: false,
         },
       })
@@ -183,6 +201,7 @@ export function RegistroPontoPage() {
       id: registroId,
       data: {
         feriado: false,
+        atestadoMedico: false,
         presenca: true,
       },
     })
@@ -395,6 +414,7 @@ export function RegistroPontoPage() {
                               <option value="Presente">Presente</option>
                               <option value="Falta">Falta</option>
                               <option value="Feriado">Feriado</option>
+                              <option value="Atestado Médico">Atestado Médico</option>
                             </select>
                           )}
                         </div>
