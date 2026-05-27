@@ -222,8 +222,9 @@ export function RelatoriosPage() {
         tipo: 'Hora Extra',
       })) ?? []
 
+  // Mostra apenas quem está devendo ou sobrando horas (saldo diferente de zero)
   const consolidated =
-    reportData?.map<ConsolidatedBalanceItem>((item) => ({
+    reportData?.filter((item) => item.saldoHoras !== 0).map<ConsolidatedBalanceItem>((item) => ({
       funcionario: item.funcionario.nome,
       horasPlanejadas: item.horasPlanejadas,
       horasCumpridas: item.horasCumpridas,
@@ -248,7 +249,8 @@ export function RelatoriosPage() {
 
   const totalHorasExtras = extras.reduce((acc, item) => acc + item.saldoAbsoluto, 0)
   const totalAtrasos = delays.reduce((acc, item) => acc + item.saldoAbsoluto, 0)
-  const totalExatos = consolidated.filter((item) => item.tipo === 'Exato').length
+  // Não exibe mais saldo zerado
+  const totalExatos = 0
 
   const handleExportExcel = async () => {
     if (monthly.length === 0) {
@@ -602,7 +604,7 @@ export function RelatoriosPage() {
         />
       ) : (
         <>
-          <div className="mb-6 grid grid-cols-4 gap-4">
+          <div className="mb-6 grid grid-cols-3 gap-4">
             <div className="rounded-xl border border-red-200 bg-red-50 p-6 shadow-sm">
               <div className="text-sm font-semibold text-red-700">Faltas</div>
               <div className="mt-2 text-3xl font-black text-red-700">{absences.length}</div>
@@ -610,10 +612,6 @@ export function RelatoriosPage() {
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
               <div className="text-sm font-semibold text-amber-700">Atraso consolidado</div>
               <div className="mt-2 text-3xl font-black text-amber-700">{formatHours(totalAtrasos)}</div>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="text-sm font-semibold text-slate-600">Saldo zerado</div>
-              <div className="mt-2 text-3xl font-black text-slate-900">{totalExatos}</div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="text-sm font-semibold text-slate-600">Hora extra consolidada</div>
@@ -639,27 +637,35 @@ export function RelatoriosPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {consolidated.map((item) => (
-                    <tr key={item.funcionario} className="hover:bg-slate-50">
-                      <td className="px-6 py-4 font-medium text-slate-900">{item.funcionario}</td>
-                      <td className="px-6 py-4 text-slate-700">{formatHours(item.horasPlanejadas)}</td>
-                      <td className="px-6 py-4 text-slate-700">{formatHours(item.horasCumpridas)}</td>
-                      <td className="px-6 py-4 text-slate-700">{item.tipo}</td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-black shadow-sm ${
-                            item.tipo === 'Hora Extra'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : item.tipo === 'Atraso'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-slate-100 text-slate-700'
-                          }`}
-                        >
-                          {formatHours(item.saldoAbsoluto)}
-                        </span>
+                  {consolidated.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-4 text-center text-slate-500">
+                        Nenhum funcionário com saldo de horas positivo ou negativo no período.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    consolidated.map((item) => (
+                      <tr key={item.funcionario} className="hover:bg-slate-50">
+                        <td className="px-6 py-4 font-medium text-slate-900">{item.funcionario}</td>
+                        <td className="px-6 py-4 text-slate-700">{formatHours(item.horasPlanejadas)}</td>
+                        <td className="px-6 py-4 text-slate-700">{formatHours(item.horasCumpridas)}</td>
+                        <td className="px-6 py-4 text-slate-700">{item.tipo}</td>
+                        <td className="px-6 py-4">
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-black shadow-sm ${
+                              item.tipo === 'Hora Extra'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : item.tipo === 'Atraso'
+                                  ? 'bg-red-100 text-red-800'
+                                  : 'bg-slate-100 text-slate-700'
+                            }`}
+                          >
+                            {formatHours(item.saldoAbsoluto)}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </section>
