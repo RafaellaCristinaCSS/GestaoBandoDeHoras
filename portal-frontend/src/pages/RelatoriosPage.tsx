@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Download } from 'lucide-react'
-import * as XLSX from 'xlsx'
+import * as XLSX from 'xlsx-js-style'
 import { funcionarioService } from '@/services/funcionarioService'
 import { registroPontoService } from '@/services/registroPontoService'
 import { Loading } from '@/components/Loading'
@@ -56,14 +56,9 @@ const toExcelDate = (date: string) => {
   return new Date(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate(), 0, 0, 0, 0)
 }
 
-const toExcelTime = (time?: string) => {
-  const minutes = toMinutes(time)
-  if (minutes == null) return null
-
-  return minutes / (24 * 60)
+const toExcelDuration = (hours: number) => {
+  return Number((hours / 24).toFixed(10))
 }
-
-const toExcelDuration = (hours: number) => Math.abs(hours) / 24
 
 const getWorkedHours = (registro: RegistroPonto) => {
   const entrada = toMinutes(registro.entrada)
@@ -230,7 +225,7 @@ export function RelatoriosPage() {
       horasCumpridas: item.horasCumpridas,
       saldoHoras: item.saldoHoras,
       saldoAbsoluto: Math.abs(item.saldoHoras),
-      tipo: item.saldoHoras > 0 ? 'Hora Extra' : item.saldoHoras < 0 ? 'Atraso' : 'Exato',
+      tipo: item.saldoHoras > 0 ? 'Hora Extra' : 'Atraso',
     })) ?? []
 
   const monthly = reportData ?? []
@@ -249,232 +244,172 @@ export function RelatoriosPage() {
 
   const totalHorasExtras = extras.reduce((acc, item) => acc + item.saldoAbsoluto, 0)
   const totalAtrasos = delays.reduce((acc, item) => acc + item.saldoAbsoluto, 0)
-  // Não exibe mais saldo zerado
-  const totalExatos = 0
 
   const handleExportExcel = async () => {
     if (monthly.length === 0) {
       showToast('Nenhum dado para exportar', 'error')
       return
     }
-
     if (!Object.values(exportSections).some(Boolean)) {
       showToast('Selecione ao menos um bloco para exportar.', 'error')
       return
     }
-
     try {
       setIsExporting(true)
       const workbook = XLSX.utils.book_new()
-
       const worksheet = XLSX.utils.aoa_to_sheet([])
-      const merges: Array<{ s: { r: number; c: number }; e: { r: number; c: number } }> = []
-      worksheet['!merges'] = merges
-      const totalColumns = 10
-      const menuColor = '0F172A'
-
+      // Definir largura das colunas: A = 60, B-E = 20
       worksheet['!cols'] = [
-        { wch: 24 },
-        { wch: 14 },
-        { wch: 18 },
-        { wch: 14 },
-        { wch: 18 },
-        { wch: 14 },
-        { wch: 14 },
-        { wch: 14 },
-        { wch: 14 },
-        { wch: 42 },
+        { wch: 60 }, // Coluna A (Funcionário)
+        { wch: 20 },
+        { wch: 20 },
+        { wch: 20 },
+        { wch: 20 },
       ]
-
-      const titleStyle: any = {
+      let rowIndex = 0
+      // Styles
+      const borderStyle = {
+        top: { style: 'thin', color: { rgb: '000000' } },
+        bottom: { style: 'thin', color: { rgb: '000000' } },
+        left: { style: 'thin', color: { rgb: '000000' } },
+        right: { style: 'thin', color: { rgb: '000000' } },
+      }
+      // Todos os estilos sempre recebem a borda preta
+      const titleStyle = {
         font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 16 },
-        fill: { patternType: 'solid', fgColor: { rgb: menuColor } },
+        fill: { patternType: 'solid', fgColor: { rgb: '16594d' } },
         alignment: { horizontal: 'center', vertical: 'center' },
+        border: borderStyle,
       }
-
-      const subtitleStyle: any = {
-        font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 12 },
-        fill: { patternType: 'solid', fgColor: { rgb: menuColor } },
-        alignment: { horizontal: 'center', vertical: 'center' },
-      }
-
-      const headerStyle: any = {
-        font: { bold: true, color: { rgb: 'FFFFFF' } },
-        fill: { patternType: 'solid', fgColor: { rgb: menuColor } },
+      const headerStyle = {
+        font: { bold: true, color: { rgb: 'ffffff' } },
+        fill: { patternType: 'solid', fgColor: { rgb: '#237767' } },
         alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-        border: {
-          top: { style: 'thin', color: { rgb: 'CBD5E1' } },
-          bottom: { style: 'thin', color: { rgb: 'CBD5E1' } },
-          left: { style: 'thin', color: { rgb: 'CBD5E1' } },
-          right: { style: 'thin', color: { rgb: 'CBD5E1' } },
-        },
+        border: borderStyle,
       }
-
-      const cellStyle: any = {
-        alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
-        border: {
-          top: { style: 'thin', color: { rgb: 'E2E8F0' } },
-          bottom: { style: 'thin', color: { rgb: 'E2E8F0' } },
-          left: { style: 'thin', color: { rgb: 'E2E8F0' } },
-          right: { style: 'thin', color: { rgb: 'E2E8F0' } },
-        },
+      const cellStyle = {
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: borderStyle,
       }
-
-      const positiveStyle: any = {
+      const atrasoStyle = {
+        ...cellStyle,
+        font: { bold: true, color: { rgb: 'b91c1c' } },
+        fill: { patternType: 'solid', fgColor: { rgb: 'fee2e2' } },
+        border: borderStyle,
+      }
+      const extraStyle = {
         ...cellStyle,
         font: { bold: true, color: { rgb: '166534' } },
-        fill: { patternType: 'solid', fgColor: { rgb: 'DCFCE7' } },
+        fill: { patternType: 'solid', fgColor: { rgb: 'dcfce7' } },
+        border: borderStyle,
       }
-
-      const negativeStyle: any = {
-        ...cellStyle,
-        font: { bold: true, color: { rgb: '991B1B' } },
-        fill: { patternType: 'solid', fgColor: { rgb: 'FEE2E2' } },
-      }
-
-      const neutralStyle: any = {
-        ...cellStyle,
-        font: { bold: true, color: { rgb: '334155' } },
-        fill: { patternType: 'solid', fgColor: { rgb: 'F1F5F9' } },
-      }
-
-      let rowIndex = 0
-      const setRowStyle = (row: number, columnCount: number, style: any) => {
-        for (let column = 0; column < columnCount; column += 1) {
-          const address = XLSX.utils.encode_cell({ r: row, c: column })
-          if (worksheet[address]) {
-            worksheet[address].s = style
-          }
-        }
-      }
-
-      const appendRow = (values: ExportCell[], style?: any) => {
-        const plainValues = values.map((item) => item.value)
-        XLSX.utils.sheet_add_aoa(worksheet, [plainValues], { origin: { r: rowIndex, c: 0 } })
-
-        values.forEach((item, columnIndex) => {
-          const address = XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex })
+      // Helpers
+      const appendRow = (values: any[], styles: any[]) => {
+        XLSX.utils.sheet_add_aoa(worksheet, [values.map(v => v.value !== undefined ? v.value : v)], { origin: { r: rowIndex, c: 0 } })
+        values.forEach((v, i) => {
+          const address = XLSX.utils.encode_cell({ r: rowIndex, c: i })
           if (!worksheet[address]) return
-
-          if (item.type) {
-            worksheet[address].t = item.type
-          }
-
-          if (item.format) {
-            worksheet[address].z = item.format
-          }
+          if (v.type) worksheet[address].t = v.type
+          if (v.format) worksheet[address].z = v.format
+          // Sempre aplica borda preta em todas as células
+          const baseStyle = styles && styles[i] ? styles[i] : cellStyle
+          worksheet[address].s = { ...baseStyle, border: borderStyle }
         })
-
-        if (style) {
-          setRowStyle(rowIndex, values.length, style)
-        }
-        rowIndex += 1
+        rowIndex++
       }
-
       const appendMergedTitle = (text: string, style: any) => {
-        appendRow([{ value: text }], style)
-        merges.push({ s: { r: rowIndex - 1, c: 0 }, e: { r: rowIndex - 1, c: totalColumns - 1 } })
+        appendRow([{ value: text }], [style])
+        worksheet['!merges'] = worksheet['!merges'] || []
+        worksheet['!merges'].push({ s: { r: rowIndex - 1, c: 0 }, e: { r: rowIndex - 1, c: 4 } })
       }
-
-      const appendSection = (
-        title: string,
-        headers: string[],
-        rows: ExportCell[][],
-        options?: { saldoColumnIndex?: number }
-      ) => {
-        appendMergedTitle(title, subtitleStyle)
-        appendRow(headers.map((header) => ({ value: header })), headerStyle)
-        rows.forEach((values) => {
-          appendRow(values, cellStyle)
-          if (options?.saldoColumnIndex != null) {
-            const saldoValue = Number(values[options.saldoColumnIndex].value)
-            const saldoStyle = saldoValue > 0 ? positiveStyle : saldoValue < 0 ? negativeStyle : neutralStyle
-            const address = XLSX.utils.encode_cell({ r: rowIndex - 1, c: options.saldoColumnIndex })
-            if (worksheet[address]) {
-              worksheet[address].s = saldoStyle
-            }
-          }
-        })
-        rowIndex += 1
-      }
-
+      // Título
       appendMergedTitle(`Relatório de Horas - ${formatDateLabel(startDate)} a ${formatDateLabel(endDate)}`, titleStyle)
-      appendMergedTitle(`Gerado em ${new Date().toLocaleString('pt-BR')}`, subtitleStyle)
-      appendRow([])
-
-      appendSection(
-        'Fechamento consolidado',
-        ['Funcionário', 'Horas Previstas', 'Horas Trabalhadas', 'Resultado', 'Saldo Absoluto'],
-        consolidated.map((item) => [
+      appendRow([{ value: `Gerado em ${new Date().toLocaleString('pt-BR')}` }], [cellStyle])
+      appendRow([{ value: '' }], [cellStyle])
+      // Fechamento consolidado
+      appendMergedTitle('Fechamento consolidado', headerStyle)
+      appendRow([
+        { value: 'Funcionário' },
+        { value: 'Horas Previstas' },
+        { value: 'Horas Trabalhadas' },
+        { value: 'Resultado' },
+        { value: 'Saldo Absoluto' },
+      ], [headerStyle, headerStyle, headerStyle, headerStyle, headerStyle])
+      consolidated.forEach(item => {
+        const saldoStyle = item.tipo === 'Atraso' ? atrasoStyle : item.tipo === 'Hora Extra' ? extraStyle : cellStyle
+        appendRow([
           { value: item.funcionario },
-          { value: toExcelDuration(item.horasPlanejadas), type: 'n', format: '[h]:mm' },
-          { value: toExcelDuration(item.horasCumpridas), type: 'n', format: '[h]:mm' },
+          { value: toExcelDuration(item.horasPlanejadas), type: 'n', format: '[hh]:mm' },
+          { value: toExcelDuration(item.horasCumpridas), type: 'n', format: '[hh]:mm' },
           { value: item.tipo },
-          { value: toExcelDuration(item.saldoAbsoluto), type: 'n', format: '[h]:mm' },
-        ])
-      )
-
+          { value: toExcelDuration(item.saldoAbsoluto), type: 'n', format: '[hh]:mm' },
+        ], [cellStyle, cellStyle, cellStyle, cellStyle, saldoStyle])
+      })
+      appendRow([{ value: '' }], [cellStyle])
+      // Faltas
       if (exportSections.faltas) {
-        appendSection(
-          'Faltas',
-          ['Funcionário', 'Dia', 'Observação'],
-          absences.map((item) => [
+        appendMergedTitle('Faltas', headerStyle)
+        appendRow([
+          { value: 'Funcionário' },
+          { value: 'Dia' },
+          { value: 'Observação' },
+        ], [headerStyle, headerStyle, headerStyle])
+        absences.forEach(item => {
+          appendRow([
             { value: item.funcionario },
             { value: toExcelDate(item.data), type: 'd', format: 'dd/mm/yyyy' },
             { value: item.observacao },
-          ])
-        )
+          ], [cellStyle, cellStyle, cellStyle])
+        })
+        appendRow([{ value: '' }], [cellStyle])
       }
-
+      // Atrasos
       if (exportSections.atrasos) {
-        appendSection(
-          'Atrasos',
-          [
-            'Funcionário',
-            'Horas Previstas',
-            'Horas Trabalhadas',
-            'Resultado',
-            'Atraso Consolidado',
-          ],
-          delays.map((item) => [
+        appendMergedTitle('Atrasos', headerStyle)
+        appendRow([
+          { value: 'Funcionário' },
+          { value: 'Horas Previstas' },
+          { value: 'Horas Trabalhadas' },
+          { value: 'Resultado' },
+          { value: 'Atraso Consolidado' },
+        ], [headerStyle, headerStyle, headerStyle, headerStyle, headerStyle])
+        delays.forEach(item => {
+          appendRow([
             { value: item.funcionario },
-            { value: toExcelDuration(item.horasPlanejadas), type: 'n', format: '[h]:mm' },
-            { value: toExcelDuration(item.horasCumpridas), type: 'n', format: '[h]:mm' },
+            { value: toExcelDuration(item.horasPlanejadas), type: 'n', format: '[hh]:mm' },
+            { value: toExcelDuration(item.horasCumpridas), type: 'n', format: '[hh]:mm' },
             { value: item.tipo },
-            { value: toExcelDuration(item.saldoAbsoluto), type: 'n', format: '[h]:mm' },
-          ]),
-          { saldoColumnIndex: 4 }
-        )
+            { value: toExcelDuration(item.saldoAbsoluto), type: 'n', format: '[hh]:mm' },
+          ], [cellStyle, cellStyle, cellStyle, cellStyle, atrasoStyle])
+        })
+        appendRow([{ value: '' }], [cellStyle])
       }
-
+      // Horas extras
       if (exportSections.horasExtras) {
-        appendSection(
-          'Horas extras',
-          [
-            'Funcionário',
-            'Horas Previstas',
-            'Horas Trabalhadas',
-            'Resultado',
-            'Hora Extra Consolidada',
-          ],
-          extras.map((item) => [
+        appendMergedTitle('Horas extras', headerStyle)
+        appendRow([
+          { value: 'Funcionário' },
+          { value: 'Horas Previstas' },
+          { value: 'Horas Trabalhadas' },
+          { value: 'Resultado' },
+          { value: 'Hora Extra Consolidada' },
+        ], [headerStyle, headerStyle, headerStyle, headerStyle, headerStyle])
+        extras.forEach(item => {
+          appendRow([
             { value: item.funcionario },
-            { value: toExcelDuration(item.horasPlanejadas), type: 'n', format: '[h]:mm' },
-            { value: toExcelDuration(item.horasCumpridas), type: 'n', format: '[h]:mm' },
+            { value: toExcelDuration(item.horasPlanejadas), type: 'n', format: '[hh]:mm' },
+            { value: toExcelDuration(item.horasCumpridas), type: 'n', format: '[hh]:mm' },
             { value: item.tipo },
-            { value: toExcelDuration(item.saldoAbsoluto), type: 'n', format: '[h]:mm' },
-          ]),
-          { saldoColumnIndex: 4 }
-        )
+            { value: toExcelDuration(item.saldoAbsoluto), type: 'n', format: '[hh]:mm' },
+          ], [cellStyle, cellStyle, cellStyle, cellStyle, extraStyle])
+        })
+        appendRow([{ value: '' }], [cellStyle])
       }
-
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Relatorio')
-
-      const fileName = `Relatorio_Geral_${startDate}_a_${endDate}.ods`
-      XLSX.writeFile(workbook, fileName, { bookType: 'ods' })
-
+      const fileName = `Relatorio_Geral_${startDate}_a_${endDate}.xlsx`
+      XLSX.writeFile(workbook, fileName)
       showToast('Relatório exportado com sucesso!', 'success')
-    } catch {
+    } catch (e) {
       showToast('Erro ao exportar relatório', 'error')
     } finally {
       setIsExporting(false)
