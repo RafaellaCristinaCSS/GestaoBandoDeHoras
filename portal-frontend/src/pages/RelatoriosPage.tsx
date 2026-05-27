@@ -31,7 +31,25 @@ const normalizeRangeMinutes = (start: number, end: number) => {
   return end
 }
 
-const formatHours = (hours: number) => `${hours.toFixed(1)}h`
+const formatHours = (hours: number) => {
+  const totalMinutes = Math.round(Math.abs(hours) * 60)
+  const formatted = `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`
+  return hours < 0 ? `-${formatted}` : formatted
+}
+
+const toExcelDate = (date: string) => {
+  const parsedDate = parseLocalDate(date)
+  return new Date(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate(), 0, 0, 0, 0)
+}
+
+const toExcelTime = (time?: string) => {
+  const minutes = toMinutes(time)
+  if (minutes == null) return null
+
+  return minutes / (24 * 60)
+}
+
+const toExcelDuration = (hours: number) => Math.abs(hours) / 24
 
 const getWorkedHours = (registro: RegistroPonto) => {
   const entrada = toMinutes(registro.entrada)
@@ -61,25 +79,24 @@ type EmployeeReport = {
   funcionario: Funcionario
   registros: RegistroPonto[]
   faltas: RegistroPonto[]
-  atrasos: Array<{
-    registro: RegistroPonto
-    horasPlanejadasDia: number
-    horasCumpridasDia: number
-    saldoHorasDia: number
-    entradaPlanejada?: string
-    saidaPlanejada?: string
-  }>
-  extras: Array<{
-    registro: RegistroPonto
-    horasPlanejadasDia: number
-    horasCumpridasDia: number
-    saldoHorasDia: number
-    entradaPlanejada?: string
-    saidaPlanejada?: string
-  }>
   horasPlanejadas: number
   horasCumpridas: number
   saldoHoras: number
+}
+
+type ConsolidatedBalanceItem = {
+  funcionario: string
+  horasPlanejadas: number
+  horasCumpridas: number
+  saldoHoras: number
+  saldoAbsoluto: number
+  tipo: 'Atraso' | 'Hora Extra' | 'Exato'
+}
+
+type ExportCell = {
+  value: string | number | Date
+  type?: 's' | 'n' | 'd'
+  format?: string
 }
 
 type ExportSections = {
@@ -125,72 +142,6 @@ export function RelatoriosPage() {
 
           const faltas = registros.filter((registro) => registro.status === 'Falta')
 
-          const atrasos = registros
-            .map((registro) => {
-              if (registro.status === 'Feriado') return null
-
-              if (!registro.presenca) return null
-
-              const horasPlanejadasDia = registro.horasPrevistas ?? 0
-              const horasCumpridasDia = getWorkedHours(registro)
-              const saldoHorasDia = horasCumpridasDia - horasPlanejadasDia
-
-              if (saldoHorasDia >= 0) {
-                return null
-              }
-
-              return {
-                registro,
-                horasPlanejadasDia,
-                horasCumpridasDia,
-                saldoHorasDia,
-                entradaPlanejada: registro.entradaPlanejada,
-                saidaPlanejada: registro.saidaPlanejada,
-              }
-            })
-            .filter((item): item is NonNullable<typeof item> => item !== null)
-
-          const extras = registros
-            .map((registro) => {
-              if (registro.status === 'Feriado') {
-                const horasCumpridasDia = getWorkedHours(registro)
-                const saldoHorasDia = horasCumpridasDia
-
-                if (saldoHorasDia <= 0) {
-                  return null
-                }
-
-                return {
-                  registro,
-                  horasPlanejadasDia: 0,
-                  horasCumpridasDia,
-                  saldoHorasDia,
-                  entradaPlanejada: '-',
-                  saidaPlanejada: '-',
-                }
-              }
-
-              if (!registro.presenca) return null
-
-              const horasPlanejadasDia = registro.status === 'Feriado' ? 0 : (registro.horasPrevistas ?? 0)
-              const horasCumpridasDia = getWorkedHours(registro)
-              const saldoHorasDia = horasCumpridasDia - horasPlanejadasDia
-
-              if (saldoHorasDia <= 0) {
-                return null
-              }
-
-              return {
-                registro,
-                horasPlanejadasDia,
-                horasCumpridasDia,
-                saldoHorasDia,
-                entradaPlanejada: registro.entradaPlanejada,
-                saidaPlanejada: registro.saidaPlanejada,
-              }
-            })
-            .filter((item): item is NonNullable<typeof item> => item !== null)
-
           const totals = registros.reduce(
             (acc, registro) => {
               const horasPlanejadasDoDia = registro.status === 'Feriado' ? 0 : (registro.horasPrevistas ?? 0)
@@ -211,8 +162,6 @@ export function RelatoriosPage() {
             funcionario,
             registros,
             faltas,
-            atrasos,
-            extras,
             horasPlanejadas: totals.horasPlanejadas,
             horasCumpridas: totals.horasCumpridas,
             saldoHoras: totals.horasCumpridas - totals.horasPlanejadas,
@@ -234,36 +183,38 @@ export function RelatoriosPage() {
     ) ?? []
 
   const delays =
-    reportData?.flatMap((item) =>
-      item.atrasos.map((atraso) => ({
+    reportData
+      ?.filter((item) => item.saldoHoras < 0)
+      .map<ConsolidatedBalanceItem>((item) => ({
         funcionario: item.funcionario.nome,
-        data: atraso.registro.data,
-        entradaPlanejada: atraso.entradaPlanejada || '-',
-        entradaReal: atraso.registro.entrada || '-',
-        saidaPlanejada: atraso.saidaPlanejada || '-',
-        saidaReal: atraso.registro.saida || '-',
-        horasPlanejadasDia: atraso.horasPlanejadasDia,
-        horasCumpridasDia: atraso.horasCumpridasDia,
-        saldoHorasDia: atraso.saldoHorasDia,
-        observacao: atraso.registro.observacao || '-',
-      }))
-    ) ?? []
+        horasPlanejadas: item.horasPlanejadas,
+        horasCumpridas: item.horasCumpridas,
+        saldoHoras: item.saldoHoras,
+        saldoAbsoluto: Math.abs(item.saldoHoras),
+        tipo: 'Atraso',
+      })) ?? []
 
   const extras =
-    reportData?.flatMap((item) =>
-      item.extras.map((extra) => ({
+    reportData
+      ?.filter((item) => item.saldoHoras > 0)
+      .map<ConsolidatedBalanceItem>((item) => ({
         funcionario: item.funcionario.nome,
-        data: extra.registro.data,
-        entradaPlanejada: extra.entradaPlanejada || '-',
-        entradaReal: extra.registro.entrada || '-',
-        saidaPlanejada: extra.saidaPlanejada || '-',
-        saidaReal: extra.registro.saida || '-',
-        horasPlanejadasDia: extra.horasPlanejadasDia,
-        horasCumpridasDia: extra.horasCumpridasDia,
-        saldoHorasDia: extra.saldoHorasDia,
-        observacao: extra.registro.observacao || '-',
-      }))
-    ) ?? []
+        horasPlanejadas: item.horasPlanejadas,
+        horasCumpridas: item.horasCumpridas,
+        saldoHoras: item.saldoHoras,
+        saldoAbsoluto: item.saldoHoras,
+        tipo: 'Hora Extra',
+      })) ?? []
+
+  const consolidated =
+    reportData?.map<ConsolidatedBalanceItem>((item) => ({
+      funcionario: item.funcionario.nome,
+      horasPlanejadas: item.horasPlanejadas,
+      horasCumpridas: item.horasCumpridas,
+      saldoHoras: item.saldoHoras,
+      saldoAbsoluto: Math.abs(item.saldoHoras),
+      tipo: item.saldoHoras > 0 ? 'Hora Extra' : item.saldoHoras < 0 ? 'Atraso' : 'Exato',
+    })) ?? []
 
   const monthly = reportData ?? []
 
@@ -279,7 +230,9 @@ export function RelatoriosPage() {
   const paginatedDelays = delays.slice((safeDelaysPage - 1) * pageSize, safeDelaysPage * pageSize)
   const paginatedExtras = extras.slice((safeExtrasPage - 1) * pageSize, safeExtrasPage * pageSize)
 
-  const totalHorasExtras = extras.reduce((acc, item) => acc + item.saldoHorasDia, 0)
+  const totalHorasExtras = extras.reduce((acc, item) => acc + item.saldoAbsoluto, 0)
+  const totalAtrasos = delays.reduce((acc, item) => acc + item.saldoAbsoluto, 0)
+  const totalExatos = consolidated.filter((item) => item.tipo === 'Exato').length
 
   const handleExportExcel = async () => {
     if (monthly.length === 0) {
@@ -378,8 +331,23 @@ export function RelatoriosPage() {
         }
       }
 
-      const appendRow = (values: Array<string | number>, style?: any) => {
-        XLSX.utils.sheet_add_aoa(worksheet, [values], { origin: { r: rowIndex, c: 0 } })
+      const appendRow = (values: ExportCell[], style?: any) => {
+        const plainValues = values.map((item) => item.value)
+        XLSX.utils.sheet_add_aoa(worksheet, [plainValues], { origin: { r: rowIndex, c: 0 } })
+
+        values.forEach((item, columnIndex) => {
+          const address = XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex })
+          if (!worksheet[address]) return
+
+          if (item.type) {
+            worksheet[address].t = item.type
+          }
+
+          if (item.format) {
+            worksheet[address].z = item.format
+          }
+        })
+
         if (style) {
           setRowStyle(rowIndex, values.length, style)
         }
@@ -387,22 +355,22 @@ export function RelatoriosPage() {
       }
 
       const appendMergedTitle = (text: string, style: any) => {
-        appendRow([text], style)
+        appendRow([{ value: text }], style)
         merges.push({ s: { r: rowIndex - 1, c: 0 }, e: { r: rowIndex - 1, c: totalColumns - 1 } })
       }
 
       const appendSection = (
         title: string,
         headers: string[],
-        rows: Array<Array<string | number>>,
+        rows: ExportCell[][],
         options?: { saldoColumnIndex?: number }
       ) => {
         appendMergedTitle(title, subtitleStyle)
-        appendRow(headers, headerStyle)
+        appendRow(headers.map((header) => ({ value: header })), headerStyle)
         rows.forEach((values) => {
           appendRow(values, cellStyle)
           if (options?.saldoColumnIndex != null) {
-            const saldoValue = Number(values[options.saldoColumnIndex])
+            const saldoValue = Number(values[options.saldoColumnIndex].value)
             const saldoStyle = saldoValue > 0 ? positiveStyle : saldoValue < 0 ? negativeStyle : neutralStyle
             const address = XLSX.utils.encode_cell({ r: rowIndex - 1, c: options.saldoColumnIndex })
             if (worksheet[address]) {
@@ -414,17 +382,29 @@ export function RelatoriosPage() {
       }
 
       appendMergedTitle(`Relatório de Horas - ${monthName} / ${selectedYear}`, titleStyle)
-  appendMergedTitle(`Gerado em ${new Date().toLocaleString('pt-BR')}`, subtitleStyle)
+      appendMergedTitle(`Gerado em ${new Date().toLocaleString('pt-BR')}`, subtitleStyle)
       appendRow([])
+
+      appendSection(
+        'Fechamento consolidado',
+        ['Funcionário', 'Horas Previstas', 'Horas Trabalhadas', 'Resultado', 'Saldo Absoluto'],
+        consolidated.map((item) => [
+          { value: item.funcionario },
+          { value: toExcelDuration(item.horasPlanejadas), type: 'n', format: '[h]:mm' },
+          { value: toExcelDuration(item.horasCumpridas), type: 'n', format: '[h]:mm' },
+          { value: item.tipo },
+          { value: toExcelDuration(item.saldoAbsoluto), type: 'n', format: '[h]:mm' },
+        ])
+      )
 
       if (exportSections.faltas) {
         appendSection(
           'Faltas',
           ['Funcionário', 'Dia', 'Observação'],
           absences.map((item) => [
-            item.funcionario,
-            parseLocalDate(item.data).toLocaleDateString('pt-BR'),
-            item.observacao,
+            { value: item.funcionario },
+            { value: toExcelDate(item.data), type: 'd', format: 'dd/mm/yyyy' },
+            { value: item.observacao },
           ])
         )
       }
@@ -434,29 +414,19 @@ export function RelatoriosPage() {
           'Atrasos',
           [
             'Funcionário',
-            'Dia',
-            'Entrada Prevista',
-            'Entrada Real',
-            'Saída Prevista',
-            'Saída Real',
             'Horas Previstas',
             'Horas Trabalhadas',
-            'Saldo',
-            'Observação',
+            'Resultado',
+            'Atraso Consolidado',
           ],
           delays.map((item) => [
-            item.funcionario,
-            parseLocalDate(item.data).toLocaleDateString('pt-BR'),
-            item.entradaPlanejada,
-            item.entradaReal,
-            item.saidaPlanejada,
-            item.saidaReal,
-            item.horasPlanejadasDia,
-            item.horasCumpridasDia,
-            item.saldoHorasDia,
-            item.observacao,
+            { value: item.funcionario },
+            { value: toExcelDuration(item.horasPlanejadas), type: 'n', format: '[h]:mm' },
+            { value: toExcelDuration(item.horasCumpridas), type: 'n', format: '[h]:mm' },
+            { value: item.tipo },
+            { value: toExcelDuration(item.saldoAbsoluto), type: 'n', format: '[h]:mm' },
           ]),
-          { saldoColumnIndex: 8 }
+          { saldoColumnIndex: 4 }
         )
       }
 
@@ -465,29 +435,19 @@ export function RelatoriosPage() {
           'Horas extras',
           [
             'Funcionário',
-            'Dia',
-            'Entrada Prevista',
-            'Entrada Real',
-            'Saída Prevista',
-            'Saída Real',
             'Horas Previstas',
             'Horas Trabalhadas',
-            'Horas extras',
-            'Observação',
+            'Resultado',
+            'Hora Extra Consolidada',
           ],
           extras.map((item) => [
-            item.funcionario,
-            parseLocalDate(item.data).toLocaleDateString('pt-BR'),
-            item.entradaPlanejada,
-            item.entradaReal,
-            item.saidaPlanejada,
-            item.saidaReal,
-            item.horasPlanejadasDia,
-            item.horasCumpridasDia,
-            item.saldoHorasDia,
-            item.observacao,
+            { value: item.funcionario },
+            { value: toExcelDuration(item.horasPlanejadas), type: 'n', format: '[h]:mm' },
+            { value: toExcelDuration(item.horasCumpridas), type: 'n', format: '[h]:mm' },
+            { value: item.tipo },
+            { value: toExcelDuration(item.saldoAbsoluto), type: 'n', format: '[h]:mm' },
           ]),
-          { saldoColumnIndex: 8 }
+          { saldoColumnIndex: 4 }
         )
       }
 
@@ -636,15 +596,15 @@ export function RelatoriosPage() {
               <div className="mt-2 text-3xl font-black text-red-700">{absences.length}</div>
             </div>
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
-              <div className="text-sm font-semibold text-amber-700">Atrasos</div>
-              <div className="mt-2 text-3xl font-black text-amber-700">{delays.length}</div>
+              <div className="text-sm font-semibold text-amber-700">Atraso consolidado</div>
+              <div className="mt-2 text-3xl font-black text-amber-700">{formatHours(totalAtrasos)}</div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="text-sm font-semibold text-slate-600">Funcionários ativos</div>
-              <div className="mt-2 text-3xl font-black text-slate-900">{monthly.length}</div>
+              <div className="text-sm font-semibold text-slate-600">Saldo zerado</div>
+              <div className="mt-2 text-3xl font-black text-slate-900">{totalExatos}</div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="text-sm font-semibold text-slate-600">Horas extras</div>
+              <div className="text-sm font-semibold text-slate-600">Hora extra consolidada</div>
               <div className="mt-2 text-3xl font-black text-slate-900">
                 {formatHours(totalHorasExtras)}
               </div>
@@ -652,6 +612,46 @@ export function RelatoriosPage() {
           </div>
 
           <div className="space-y-8">
+            <section className="overflow-hidden rounded-xl bg-white shadow">
+              <div className="border-b border-slate-200 px-6 py-4">
+                <h2 className="text-xl font-bold text-slate-900">Fechamento consolidado</h2>
+              </div>
+              <table className="w-full text-sm">
+                <thead className="border-b bg-slate-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left font-semibold text-slate-900">Funcionário</th>
+                    <th className="px-6 py-3 text-left font-semibold text-slate-900">Horas previstas</th>
+                    <th className="px-6 py-3 text-left font-semibold text-slate-900">Horas trabalhadas</th>
+                    <th className="px-6 py-3 text-left font-semibold text-slate-900">Resultado</th>
+                    <th className="px-6 py-3 text-left font-semibold text-slate-900">Saldo absoluto</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {consolidated.map((item) => (
+                    <tr key={item.funcionario} className="hover:bg-slate-50">
+                      <td className="px-6 py-4 font-medium text-slate-900">{item.funcionario}</td>
+                      <td className="px-6 py-4 text-slate-700">{formatHours(item.horasPlanejadas)}</td>
+                      <td className="px-6 py-4 text-slate-700">{formatHours(item.horasCumpridas)}</td>
+                      <td className="px-6 py-4 text-slate-700">{item.tipo}</td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-black shadow-sm ${
+                            item.tipo === 'Hora Extra'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : item.tipo === 'Atraso'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-slate-100 text-slate-700'
+                          }`}
+                        >
+                          {formatHours(item.saldoAbsoluto)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+
             <section className="overflow-hidden rounded-xl bg-white shadow">
               <div className="border-b border-slate-200 px-6 py-4">
                 <h2 className="text-xl font-bold text-slate-900">Faltas</h2>
@@ -695,51 +695,39 @@ export function RelatoriosPage() {
                 <h2 className="text-xl font-bold text-slate-900">Atrasos</h2>
               </div>
               {delays.length === 0 ? (
-                <div className="px-6 py-10 text-sm text-slate-500">Nenhum atraso encontrado no período.</div>
+                <div className="px-6 py-10 text-sm text-slate-500">Nenhum atraso consolidado encontrado no período.</div>
               ) : (
                 <>
                   <table className="w-full text-sm">
                   <thead className="border-b bg-slate-50">
                     <tr>
                       <th className="px-6 py-3 text-left font-semibold text-slate-900">Funcionário</th>
-                      <th className="px-6 py-3 text-left font-semibold text-slate-900">Dia</th>
-                      <th className="px-6 py-3 text-left font-semibold text-slate-900">Entrada planejada</th>
-                      <th className="px-6 py-3 text-left font-semibold text-slate-900">Entrada real</th>
-                      <th className="px-6 py-3 text-left font-semibold text-slate-900">Saída planejada</th>
-                      <th className="px-6 py-3 text-left font-semibold text-slate-900">Saída real</th>
-                      <th className="px-6 py-3 text-left font-semibold text-slate-900">Horas planejadas</th>
-                      <th className="px-6 py-3 text-left font-semibold text-slate-900">Horas cumpridas</th>
-                      <th className="px-6 py-3 text-left font-semibold text-slate-900">Saldo</th>
-                      <th className="px-6 py-3 text-left font-semibold text-slate-900">Observação</th>
+                      <th className="px-6 py-3 text-left font-semibold text-slate-900">Horas previstas</th>
+                      <th className="px-6 py-3 text-left font-semibold text-slate-900">Horas trabalhadas</th>
+                      <th className="px-6 py-3 text-left font-semibold text-slate-900">Resultado</th>
+                      <th className="px-6 py-3 text-left font-semibold text-slate-900">Atraso consolidado</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
                     {paginatedDelays.map((item, index) => (
-                      <tr key={`${item.funcionario}-${item.data}-${index}`} className="hover:bg-amber-50">
+                      <tr key={`${item.funcionario}-${index}`} className="hover:bg-amber-50">
                         <td className="px-6 py-4 font-medium text-slate-900">{item.funcionario}</td>
-                        <td className="px-6 py-4 text-slate-700">
-                          {parseLocalDate(item.data).toLocaleDateString('pt-BR')}
-                        </td>
-                        <td className="px-6 py-4 text-slate-700">{item.entradaPlanejada}</td>
-                        <td className="px-6 py-4 text-slate-700">{item.entradaReal}</td>
-                        <td className="px-6 py-4 text-slate-700">{item.saidaPlanejada}</td>
-                        <td className="px-6 py-4 text-slate-700">{item.saidaReal}</td>
                         <td className="px-6 py-4">
                           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-900 shadow-sm">
-                            {formatHours(item.horasPlanejadasDia)}
+                            {formatHours(item.horasPlanejadas)}
                           </span>
                         </td>
                         <td className="px-6 py-4">
                           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-900 shadow-sm">
-                            {formatHours(item.horasCumpridasDia)}
+                            {formatHours(item.horasCumpridas)}
                           </span>
                         </td>
+                        <td className="px-6 py-4 text-slate-700">{item.tipo}</td>
                         <td className="px-6 py-4">
                           <span className="rounded-full bg-red-600 px-3 py-1 text-xs font-black text-white shadow-sm">
-                            {formatHours(item.saldoHorasDia)}
+                            {formatHours(item.saldoAbsoluto)}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-slate-700">{item.observacao}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -759,51 +747,39 @@ export function RelatoriosPage() {
                 <h2 className="text-xl font-bold text-slate-900">Horas extras</h2>
               </div>
               {extras.length === 0 ? (
-                <div className="px-6 py-10 text-sm text-slate-500">Nenhuma hora extra encontrada no período.</div>
+                <div className="px-6 py-10 text-sm text-slate-500">Nenhuma hora extra consolidada encontrada no período.</div>
               ) : (
                 <>
                   <table className="w-full text-sm">
                     <thead className="border-b bg-slate-50">
                       <tr>
                         <th className="px-6 py-3 text-left font-semibold text-slate-900">Funcionário</th>
-                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Dia</th>
-                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Entrada planejada</th>
-                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Entrada real</th>
-                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Saída planejada</th>
-                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Saída real</th>
-                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Horas planejadas</th>
-                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Horas cumpridas</th>
-                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Horas extras</th>
-                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Observação</th>
+                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Horas previstas</th>
+                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Horas trabalhadas</th>
+                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Resultado</th>
+                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Hora extra consolidada</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
                       {paginatedExtras.map((item, index) => (
-                        <tr key={`${item.funcionario}-${item.data}-${index}`} className="hover:bg-amber-50">
+                        <tr key={`${item.funcionario}-${index}`} className="hover:bg-amber-50">
                           <td className="px-6 py-4 font-medium text-slate-900">{item.funcionario}</td>
-                          <td className="px-6 py-4 text-slate-700">
-                            {parseLocalDate(item.data).toLocaleDateString('pt-BR')}
-                          </td>
-                          <td className="px-6 py-4 text-slate-700">{item.entradaPlanejada}</td>
-                          <td className="px-6 py-4 text-slate-700">{item.entradaReal}</td>
-                          <td className="px-6 py-4 text-slate-700">{item.saidaPlanejada}</td>
-                          <td className="px-6 py-4 text-slate-700">{item.saidaReal}</td>
                           <td className="px-6 py-4">
                             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-900 shadow-sm">
-                              {formatHours(item.horasPlanejadasDia)}
+                              {formatHours(item.horasPlanejadas)}
                             </span>
                           </td>
                           <td className="px-6 py-4">
                             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-900 shadow-sm">
-                              {formatHours(item.horasCumpridasDia)}
+                              {formatHours(item.horasCumpridas)}
                             </span>
                           </td>
+                          <td className="px-6 py-4 text-slate-700">{item.tipo}</td>
                           <td className="px-6 py-4">
                             <span className="rounded-full bg-amber-400 px-3 py-1 text-xs font-black text-slate-900 shadow-sm">
-                              {formatHours(item.saldoHorasDia)}
+                              {formatHours(item.saldoAbsoluto)}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-slate-700">{item.observacao}</td>
                         </tr>
                       ))}
                     </tbody>
