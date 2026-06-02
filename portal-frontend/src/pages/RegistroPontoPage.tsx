@@ -153,12 +153,14 @@ export function RegistroPontoPage() {
   }
 
   const handleStatusChange = (registroId: number, status: string) => {
-    if (status === 'Feriado') {
+    if (status === 'Feriado' || status === 'Atestado Médico') {
+      // Limpa visualmente os campos imediatamente
+      const row = document.querySelectorAll(`tr[key]`);
       updateMutation.mutate({
         id: registroId,
         data: {
-          feriado: true,
-          atestadoMedico: false,
+          feriado: status === 'Feriado',
+          atestadoMedico: status === 'Atestado Médico',
           presenca: false,
           entrada: '',
           almocInicio: '',
@@ -166,22 +168,7 @@ export function RegistroPontoPage() {
           saida: '',
         },
       })
-      return
-    }
-
-    if (status === 'Atestado Médico') {
-      updateMutation.mutate({
-        id: registroId,
-        data: {
-          feriado: false,
-          atestadoMedico: true,
-          presenca: false,
-          entrada: '',
-          almocInicio: '',
-          almocFim: '',
-          saida: '',
-        },
-      })
+      // Não é necessário manipular DOM diretamente, pois o estado será atualizado pelo React após o mutate
       return
     }
 
@@ -344,12 +331,8 @@ export function RegistroPontoPage() {
                           Entrada
                           <input
                             type="time"
-                            defaultValue={registro.entrada || ''}
-                            onBlur={(e) => {
-                              if (e.target.value !== (registro.entrada || '')) {
-                                handleCellChange(registro.id, 'entrada', e.target.value)
-                              }
-                            }}
+                            value={registro.entrada || ''}
+                            onChange={(e) => handleCellChange(registro.id, 'entrada', e.target.value)}
                             disabled={isFolga}
                             className="mt-1 w-full rounded border border-slate-300 px-2 py-2 text-sm"
                           />
@@ -358,12 +341,8 @@ export function RegistroPontoPage() {
                           Saída
                           <input
                             type="time"
-                            defaultValue={registro.saida || ''}
-                            onBlur={(e) => {
-                              if (e.target.value !== (registro.saida || '')) {
-                                handleCellChange(registro.id, 'saida', e.target.value)
-                              }
-                            }}
+                            value={registro.saida || ''}
+                            onChange={(e) => handleCellChange(registro.id, 'saida', e.target.value)}
                             disabled={isFolga}
                             className="mt-1 w-full rounded border border-slate-300 px-2 py-2 text-sm"
                           />
@@ -372,12 +351,8 @@ export function RegistroPontoPage() {
                           Almoço início
                           <input
                             type="time"
-                            defaultValue={registro.almocInicio || ''}
-                            onBlur={(e) => {
-                              if (e.target.value !== (registro.almocInicio || '')) {
-                                handleCellChange(registro.id, 'almocInicio', e.target.value)
-                              }
-                            }}
+                            value={registro.almocInicio || ''}
+                            onChange={(e) => handleCellChange(registro.id, 'almocInicio', e.target.value)}
                             disabled={isFolga}
                             className="mt-1 w-full rounded border border-slate-300 px-2 py-2 text-sm"
                           />
@@ -386,12 +361,8 @@ export function RegistroPontoPage() {
                           Almoço fim
                           <input
                             type="time"
-                            defaultValue={registro.almocFim || ''}
-                            onBlur={(e) => {
-                              if (e.target.value !== (registro.almocFim || '')) {
-                                handleCellChange(registro.id, 'almocFim', e.target.value)
-                              }
-                            }}
+                            value={registro.almocFim || ''}
+                            onChange={(e) => handleCellChange(registro.id, 'almocFim', e.target.value)}
                             disabled={isFolga}
                             className="mt-1 w-full rounded border border-slate-300 px-2 py-2 text-sm"
                           />
@@ -482,12 +453,8 @@ export function RegistroPontoPage() {
                           <td className="px-4 py-3">
                             <input
                               type="time"
-                              defaultValue={registro.entrada || ''}
-                              onBlur={(e) => {
-                                if (e.target.value !== (registro.entrada || '')) {
-                                  handleCellChange(registro.id, 'entrada', e.target.value)
-                                }
-                              }}
+                              value={registro.entrada || ''}
+                              onChange={(e) => handleCellChange(registro.id, 'entrada', e.target.value)}
                               disabled={isFolga}
                               className="w-20 rounded border border-slate-300 px-2 py-1 text-xs"
                             />
@@ -495,12 +462,8 @@ export function RegistroPontoPage() {
                           <td className="px-4 py-3">
                             <input
                               type="time"
-                              defaultValue={registro.almocInicio || ''}
-                              onBlur={(e) => {
-                                if (e.target.value !== (registro.almocInicio || '')) {
-                                  handleCellChange(registro.id, 'almocInicio', e.target.value)
-                                }
-                              }}
+                              value={registro.almocInicio || ''}
+                              onChange={(e) => handleCellChange(registro.id, 'almocInicio', e.target.value)}
                               disabled={isFolga}
                               className="w-20 rounded border border-slate-300 px-2 py-1 text-xs"
                             />
@@ -508,12 +471,8 @@ export function RegistroPontoPage() {
                           <td className="px-4 py-3">
                             <input
                               type="time"
-                              defaultValue={registro.almocFim || ''}
-                              onBlur={(e) => {
-                                if (e.target.value !== (registro.almocFim || '')) {
-                                  handleCellChange(registro.id, 'almocFim', e.target.value)
-                                }
-                              }}
+                              value={registro.almocFim || ''}
+                              onChange={(e) => handleCellChange(registro.id, 'almocFim', e.target.value)}
                               disabled={isFolga}
                               className="w-20 rounded border border-slate-300 px-2 py-1 text-xs"
                             />
@@ -521,12 +480,8 @@ export function RegistroPontoPage() {
                           <td className="px-4 py-3">
                             <input
                               type="time"
-                              defaultValue={registro.saida || ''}
-                              onBlur={(e) => {
-                                if (e.target.value !== (registro.saida || '')) {
-                                  handleCellChange(registro.id, 'saida', e.target.value)
-                                }
-                              }}
+                              value={registro.saida || ''}
+                              onChange={(e) => handleCellChange(registro.id, 'saida', e.target.value)}
                               disabled={isFolga}
                               className="w-20 rounded border border-slate-300 px-2 py-1 text-xs"
                             />
