@@ -1,10 +1,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
 using Portal.DTOs;
 using Portal.Models;
 using Portal.Repositories;
+using Portal.Services.Registro;
 using Portal.Utils;
 
 namespace Portal.Services
@@ -13,206 +13,6 @@ namespace Portal.Services
     {
         private readonly IRegistroPontoRepository _repository;
         private readonly IFuncionarioEscalaRepository _funcionarioEscalaRepository;
-
-        private static int GetEscalaDiaSemana(DateTime data)
-            => ((int)data.DayOfWeek + 6) % 7;
-
-        private static EscalaDetalhe NormalizeDoze36Detalhe(EscalaDetalhe detalhe)
-        {
-            if (detalhe.Folga)
-                return detalhe;
-
-            if (!TimeOnly.TryParse(detalhe.HoraInicio, out var horaInicio)
-                || !TimeOnly.TryParse(detalhe.HoraFim, out var horaFim)
-                || horaFim <= horaInicio)
-                return detalhe;
-
-            var minutosTrabalho = (int)(horaFim - horaInicio).TotalMinutes;
-
-            if (TimeOnly.TryParse(detalhe.HoraAlmocoInicio, out var horaAlmocoInicio)
-                && TimeOnly.TryParse(detalhe.HoraAlmocoFim, out var horaAlmocoFim)
-                && horaAlmocoFim > horaAlmocoInicio)
-            {
-                minutosTrabalho -= (int)(horaAlmocoFim - horaAlmocoInicio).TotalMinutes;
-            }
-
-            return new EscalaDetalhe
-            {
-                Id = detalhe.Id,
-                EscalaId = detalhe.EscalaId,
-                Escala = detalhe.Escala,
-                DiaSemana = detalhe.DiaSemana,
-                HoraInicio = detalhe.HoraInicio,
-                HoraFim = detalhe.HoraFim,
-                HoraAlmocoInicio = detalhe.HoraAlmocoInicio,
-                HoraAlmocoFim = detalhe.HoraAlmocoFim,
-                HorasPrevistas = minutosTrabalho > 0 ? minutosTrabalho / 60m : 0,
-                Folga = detalhe.Folga
-            };
-        }
-
-        private static bool HasMarcacaoReal(RegistroPonto registro)
-            => !string.IsNullOrWhiteSpace(registro.HoraEntrada)
-                || !string.IsNullOrWhiteSpace(registro.HoraAlmocoInicio)
-                || !string.IsNullOrWhiteSpace(registro.HoraAlmocoFim)
-                || !string.IsNullOrWhiteSpace(registro.HoraSaida);
-
-        private static bool DeveReaplicarEscala(RegistroPonto registro)
-            => !registro.Feriado
-                && registro.Presenca
-                && registro.ChangeDate == null;
-
-        private static void ApplyEscala(RegistroPonto registro, EscalaDetalhe? detalhe, bool sobrescreverHorarios = false)
-        {
-            if (detalhe == null || detalhe.Folga)
-                return;
-
-            registro.HoraEntrada = sobrescreverHorarios || string.IsNullOrWhiteSpace(registro.HoraEntrada)
-                ? detalhe.HoraInicio
-                : registro.HoraEntrada;
-            registro.HoraAlmocoInicio = sobrescreverHorarios || string.IsNullOrWhiteSpace(registro.HoraAlmocoInicio)
-                ? (detalhe.HoraAlmocoInicio ?? string.Empty)
-                : registro.HoraAlmocoInicio;
-            registro.HoraAlmocoFim = sobrescreverHorarios || string.IsNullOrWhiteSpace(registro.HoraAlmocoFim)
-                ? (detalhe.HoraAlmocoFim ?? string.Empty)
-                : registro.HoraAlmocoFim;
-            registro.HoraSaida = sobrescreverHorarios || string.IsNullOrWhiteSpace(registro.HoraSaida)
-                ? detalhe.HoraFim
-                : registro.HoraSaida;
-        }
-
-        private static EscalaDetalhe? ResolveDetalheParaData(DateTime data, FuncionarioEscala? vinculo)
-        {
-            var escala = vinculo?.Escala;
-            if (escala == null || escala.Detalhes == null || escala.Detalhes.Count == 0)
-                return null;
-
-            if (escala.TipoEscala == TipoEscala.Doze36)
-            {
-                var detalheTrabalho = escala.Detalhes
-                    .OrderBy(d => d.DiaSemana)
-                    .FirstOrDefault(d => !d.Folga) ?? escala.Detalhes.First();
-
-                var trabalhaDiaPar = vinculo?.TrabalhaDiaPar ?? escala.TrabalhaDiaParPadrao;
-                if (!trabalhaDiaPar.HasValue)
-                    return detalheTrabalho;
-
-                var diaPar = data.Day % 2 == 0;
-                var trabalhaHoje = trabalhaDiaPar.Value ? diaPar : !diaPar;
-                if (!trabalhaHoje)
-                {
-                    return new EscalaDetalhe
-                    {
-                        Folga = true,
-                        HorasPrevistas = 0,
-                        HoraInicio = string.Empty,
-                        HoraFim = string.Empty,
-                        HoraAlmocoInicio = string.Empty,
-                        HoraAlmocoFim = string.Empty
-                    };
-                }
-
-                return NormalizeDoze36Detalhe(detalheTrabalho);
-            }
-
-            var diaSemana = GetEscalaDiaSemana(data);
-            return escala.Detalhes.FirstOrDefault(d => d.DiaSemana == diaSemana);
-        }
-
-        private static EscalaDetalhe? ResolveDetalheParaRegistro(RegistroPonto registro)
-        {
-            if (registro.Escala == null || registro.Escala.Detalhes == null || registro.Escala.Detalhes.Count == 0)
-                return null;
-
-            if (registro.Escala.TipoEscala == TipoEscala.Doze36)
-            {
-                var detalheTrabalho = registro.Escala.Detalhes
-                    .OrderBy(d => d.DiaSemana)
-                    .FirstOrDefault(d => !d.Folga) ?? registro.Escala.Detalhes.First();
-
-                var trabalhaDiaPar = registro.FuncionarioEscalaVinculo?.TrabalhaDiaPar ?? registro.Escala.TrabalhaDiaParPadrao;
-                if (!trabalhaDiaPar.HasValue)
-                    return detalheTrabalho;
-
-                var diaPar = registro.Data.Day % 2 == 0;
-                var trabalhaHoje = trabalhaDiaPar.Value ? diaPar : !diaPar;
-                if (!trabalhaHoje)
-                {
-                    return new EscalaDetalhe
-                    {
-                        Folga = true,
-                        HorasPrevistas = 0,
-                        HoraInicio = string.Empty,
-                        HoraFim = string.Empty,
-                        HoraAlmocoInicio = string.Empty,
-                        HoraAlmocoFim = string.Empty
-                    };
-                }
-
-                return NormalizeDoze36Detalhe(detalheTrabalho);
-            }
-
-            var diaSemana = GetEscalaDiaSemana(registro.Data);
-            return registro.Escala.Detalhes.FirstOrDefault(d => d.DiaSemana == diaSemana);
-        }
-
-        private static string BuildStatus(RegistroPonto e)
-        {
-
-            if (e.Feriado)
-                return "Feriado";
-            if (e.AtestadoMedico)
-                return "Atestado Médico";
-
-            var detalhe = ResolveDetalheParaRegistro(e);
-            if (detalhe?.Folga == true && !HasMarcacaoReal(e))
-                return "Folga";
-
-            if (!e.Presenca)
-                return "Falta";
-
-            return "Presente";
-        }
-
-        private static RegistroPontoReadDto ToReadDto(RegistroPonto e)
-        {
-            // Usa a escala salva no próprio registro (histórico imutável)
-            var detalhe = ResolveDetalheParaRegistro(e);
-
-            // Regra de feriado/atestado: jornada prevista = 0, saldo = 0 se não houver registro, horas registradas são extras
-            decimal? horasPrevistas = detalhe?.Folga == true ? 0 : detalhe?.HorasPrevistas;
-            if (e.Feriado || e.AtestadoMedico)
-            {
-                horasPrevistas = 0;
-            }
-
-            return new RegistroPontoReadDto
-            {
-                Id = e.Id,
-                FuncionarioId = e.FuncionarioId ?? e.RegistroPontoId,
-                Data = e.Data.ToString("yyyy-MM-dd"),
-                Entrada = e.HoraEntrada,
-                AlmocInicio = e.HoraAlmocoInicio,
-                AlmocFim = e.HoraAlmocoFim,
-                Saida = e.HoraSaida,
-                EntradaPlanejada = detalhe?.Folga == true ? null : detalhe?.HoraInicio,
-                SaidaPlanejada = detalhe?.Folga == true ? null : detalhe?.HoraFim,
-                HorasPrevistas = horasPrevistas,
-                Presenca = e.Presenca,
-                Feriado = e.Feriado,
-                AtestadoMedico = e.AtestadoMedico,
-                Observacao = e.Observacao,
-                Status = BuildStatus(e),
-                EscalaId = e.EscalaId,
-                FuncionarioEscalaId = e.FuncionarioEscalaId,
-                FuncionarioName = e.Funcionario?.Nome,
-                CreatedByUserId = e.CreatedByUserId,
-                UpdatedByUserId = e.UpdatedByUserId,
-                StartDate = e.StartDate,
-                ChangeDate = e.ChangeDate,
-                Excluded = e.Excluded
-            };
-        }
 
         public RegistroPontoService(IRegistroPontoRepository repository, IFuncionarioEscalaRepository funcionarioEscalaRepository)
         {
@@ -252,7 +52,7 @@ namespace Portal.Services
 
                     // Busca o vínculo histórico válido para a data — garante imutabilidade histórica
                     var vincEscala = await _funcionarioEscalaRepository.GetWithEscalaAtDateAsync(funcionarioId.Value, data);
-                    var detalhe = ResolveDetalheParaData(data, vincEscala);
+                    var detalhe = RegistroPontoEscalaRules.ResolveDetalheParaData(data, vincEscala);
 
                     var novo = new RegistroPonto
                     {
@@ -273,7 +73,7 @@ namespace Portal.Services
                         Excluded = false
                     };
 
-                    ApplyEscala(novo, detalhe);
+                    RegistroPontoEscalaRules.ApplyEscala(novo, detalhe);
 
                     await _repository.AddAsync(novo);
                 }
@@ -286,7 +86,7 @@ namespace Portal.Services
             var atualizouRegistrosExistentes = false;
             foreach (var registro in list)
             {
-                if (!DeveReaplicarEscala(registro))
+                if (!RegistroPontoEscalaRules.DeveReaplicarEscala(registro))
                     continue;
 
                 if ((!registro.EscalaId.HasValue || !registro.FuncionarioEscalaId.HasValue)
@@ -302,7 +102,7 @@ namespace Portal.Services
                     }
                 }
 
-                var detalhe = ResolveDetalheParaRegistro(registro);
+                var detalhe = RegistroPontoEscalaRules.ResolveDetalheParaRegistro(registro);
                 if (detalhe == null || detalhe.Folga)
                     continue;
 
@@ -311,7 +111,7 @@ namespace Portal.Services
                 var almocoFimAnterior = registro.HoraAlmocoFim;
                 var saidaAnterior = registro.HoraSaida;
 
-                ApplyEscala(registro, detalhe, sobrescreverHorarios: true);
+                RegistroPontoEscalaRules.ApplyEscala(registro, detalhe, sobrescreverHorarios: true);
 
                 if (registro.HoraEntrada != entradaAnterior
                     || registro.HoraAlmocoInicio != almocoInicioAnterior
@@ -326,7 +126,7 @@ namespace Portal.Services
             if (atualizouRegistrosExistentes)
                 await _repository.SaveChangesAsync();
 
-            return list.Select(ToReadDto);
+            return list.Select(RegistroPontoMapper.ToReadDto);
         }
 
         public async Task<RegistroPontoReadDto?> GetByIdAsync(int id)
@@ -334,7 +134,7 @@ namespace Portal.Services
             var entity = await _repository.GetByIdAsync(id);
             if (entity == null) return null;
 
-            return ToReadDto(entity);
+            return RegistroPontoMapper.ToReadDto(entity);
         }
 
         public async Task<RegistroPontoReadDto> CreateAsync(RegistroPontoCreateDto dto)
@@ -342,7 +142,7 @@ namespace Portal.Services
             if (dto.FuncionarioId <= 0) throw new Exception("FuncionarioId é obrigatório!");
 
             var vincEscala = await _funcionarioEscalaRepository.GetWithEscalaAtDateAsync(dto.FuncionarioId, dto.Data);
-            var escalaDoDia = ResolveDetalheParaData(dto.Data, vincEscala);
+            var escalaDoDia = RegistroPontoEscalaRules.ResolveDetalheParaData(dto.Data, vincEscala);
 
             var entity = new RegistroPonto();
 
@@ -361,16 +161,9 @@ namespace Portal.Services
             entity.EscalaId = vincEscala?.EscalaId;
             entity.FuncionarioEscalaId = vincEscala?.Id;
 
-            if (entity.Feriado || entity.AtestadoMedico)
+            if (!entity.Feriado && !entity.AtestadoMedico)
             {
-                entity.HoraEntrada = string.Empty;
-                entity.HoraAlmocoInicio = string.Empty;
-                entity.HoraAlmocoFim = string.Empty;
-                entity.HoraSaida = string.Empty;
-            }
-            else
-            {
-                ApplyEscala(entity, escalaDoDia);
+                RegistroPontoEscalaRules.ApplyEscala(entity, escalaDoDia);
             }
 
             entity.StartDate = DateTime.UtcNow;
@@ -393,6 +186,8 @@ namespace Portal.Services
 
             var funcionarioEfetivo = dto.FuncionarioId ?? entity.FuncionarioId;
             var dataEfetiva = dto.Data ?? entity.Data;
+            var feriadoEfetivo = dto.Feriado ?? entity.Feriado;
+            var atestadoEfetivo = dto.AtestadoMedico ?? entity.AtestadoMedico;
 
             if (dto.FuncionarioId != null)
             {
@@ -408,9 +203,12 @@ namespace Portal.Services
                 entity.EscalaId = vincEscala?.EscalaId;
                 entity.FuncionarioEscalaId = vincEscala?.Id;
 
-                // Se campos de horário vierem vazios, reaplica a escala válida para a data/funcionário informados.
-                var detalhe = ResolveDetalheParaData(dataEfetiva, vincEscala);
-                ApplyEscala(entity, detalhe);
+                if (!feriadoEfetivo && !atestadoEfetivo)
+                {
+                    // Se campos de horário vierem vazios, reaplica a escala válida para a data/funcionário informados.
+                    var detalhe = RegistroPontoEscalaRules.ResolveDetalheParaData(dataEfetiva, vincEscala);
+                    RegistroPontoEscalaRules.ApplyEscala(entity, detalhe);
+                }
             }
 
             entity.HoraEntrada = dto.Entrada ?? entity.HoraEntrada;
@@ -424,12 +222,13 @@ namespace Portal.Services
             if (dto.AtestadoMedico != null)
                 entity.AtestadoMedico = dto.AtestadoMedico ?? entity.AtestadoMedico;
 
-            if (dto.Feriado == true || dto.AtestadoMedico == true)
+            if (entity.Presenca && !entity.Feriado && !entity.AtestadoMedico && funcionarioEfetivo.HasValue)
             {
-                entity.HoraEntrada = string.Empty;
-                entity.HoraAlmocoInicio = string.Empty;
-                entity.HoraAlmocoFim = string.Empty;
-                entity.HoraSaida = string.Empty;
+                var detalheAtual = RegistroPontoEscalaRules.ResolveDetalheParaRegistro(entity);
+                if (!RegistroPontoStatusRules.HasMarcacaoReal(entity) && detalheAtual != null && !detalheAtual.Folga)
+                {
+                    RegistroPontoEscalaRules.ApplyEscala(entity, detalheAtual, sobrescreverHorarios: true);
+                }
             }
 
             entity.Observacao = dto.Observacao ?? entity.Observacao;
