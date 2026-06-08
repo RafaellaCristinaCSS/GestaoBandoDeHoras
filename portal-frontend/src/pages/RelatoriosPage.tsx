@@ -79,7 +79,7 @@ const getWorkedHours = (registro: RegistroPonto) => {
   ].filter((value): value is number => value != null)
 
   if (marcacoes.length < 2) return 0
-debugger
+  debugger
   let totalMinutos = 0
   for (let i = 0; i + 1 < marcacoes.length; i += 2) {
     const inicio = marcacoes[i]
@@ -351,7 +351,7 @@ export function RelatoriosPage() {
       }
       const headerStyle = {
         font: { bold: true, color: { rgb: 'ffffff' } },
-        fill: { patternType: 'solid', fgColor: { rgb: '#237767' } },
+        fill: { patternType: 'solid', fgColor: { rgb: '16594d' } },
         alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
         border: borderStyle,
       }
@@ -385,15 +385,49 @@ export function RelatoriosPage() {
         })
         rowIndex++
       }
-      const appendMergedTitle = (text: string, style: any) => {
+      const appendMergedTitle = (text: string, style: any, lastColumnIndex = 4) => {
         appendRow([{ value: text }], [style])
         worksheet['!merges'] = worksheet['!merges'] || []
-        worksheet['!merges'].push({ s: { r: rowIndex - 1, c: 0 }, e: { r: rowIndex - 1, c: 4 } })
+        worksheet['!merges'].push({ s: { r: rowIndex - 1, c: 0 }, e: { r: rowIndex - 1, c: lastColumnIndex } })
       }
       // Título
       appendMergedTitle(`Relatório de Horas - ${formatDateLabel(startDate)} a ${formatDateLabel(endDate)}`, titleStyle)
       appendRow([{ value: `Gerado em ${new Date().toLocaleString('pt-BR')}` }], [cellStyle])
       appendRow([{ value: '' }], [cellStyle])
+      // Faltas
+      if (exportSections.faltas && absences.length >0) {
+        appendMergedTitle('Faltas', headerStyle, 2)
+        appendRow([
+          { value: 'Funcionário' },
+          { value: 'Dia' },
+          { value: 'Observação' },
+        ], [headerStyle, headerStyle, headerStyle])
+        absences.forEach(item => {
+          appendRow([
+            { value: item.funcionario },
+            { value: toExcelDate(item.data), type: 'd', format: 'dd/mm/yyyy' },
+            { value: item.observacao },
+          ], [cellStyle, cellStyle, cellStyle])
+        })
+        appendRow([{ value: '' }], [cellStyle])
+      }
+      // Atestados médicos
+      if (exportSections.atestadosMedicos && medicalCertificates.length >0) {
+        appendMergedTitle('Atestados médicos', headerStyle, 2)
+        appendRow([
+          { value: 'Funcionário' },
+          { value: 'Dia' },
+          { value: 'Observação' },
+        ], [headerStyle, headerStyle, headerStyle])
+        medicalCertificates.forEach(item => {
+          appendRow([
+            { value: item.funcionario },
+            { value: toExcelDate(item.data), type: 'd', format: 'dd/mm/yyyy' },
+            { value: item.observacao },
+          ], [cellStyle, cellStyle, cellStyle])
+        })
+        appendRow([{ value: '' }], [cellStyle])
+      }
       // Fechamento consolidado
       appendMergedTitle('Fechamento consolidado', headerStyle)
       appendRow([
@@ -414,42 +448,8 @@ export function RelatoriosPage() {
         ], [cellStyle, cellStyle, cellStyle, cellStyle, saldoStyle])
       })
       appendRow([{ value: '' }], [cellStyle])
-      // Faltas
-      if (exportSections.faltas) {
-        appendMergedTitle('Faltas', headerStyle)
-        appendRow([
-          { value: 'Funcionário' },
-          { value: 'Dia' },
-          { value: 'Observação' },
-        ], [headerStyle, headerStyle, headerStyle])
-        absences.forEach(item => {
-          appendRow([
-            { value: item.funcionario },
-            { value: toExcelDate(item.data), type: 'd', format: 'dd/mm/yyyy' },
-            { value: item.observacao },
-          ], [cellStyle, cellStyle, cellStyle])
-        })
-        appendRow([{ value: '' }], [cellStyle])
-      }
-      // Atestados médicos
-      if (exportSections.atestadosMedicos) {
-        appendMergedTitle('Atestados médicos', headerStyle)
-        appendRow([
-          { value: 'Funcionário' },
-          { value: 'Dia' },
-          { value: 'Observação' },
-        ], [headerStyle, headerStyle, headerStyle])
-        medicalCertificates.forEach(item => {
-          appendRow([
-            { value: item.funcionario },
-            { value: toExcelDate(item.data), type: 'd', format: 'dd/mm/yyyy' },
-            { value: item.observacao },
-          ], [cellStyle, cellStyle, cellStyle])
-        })
-        appendRow([{ value: '' }], [cellStyle])
-      }
       // Atrasos
-      if (exportSections.atrasos) {
+      if (exportSections.atrasos && delays.length >0) {
         appendMergedTitle('Atrasos', headerStyle)
         appendRow([
           { value: 'Funcionário' },
@@ -470,7 +470,7 @@ export function RelatoriosPage() {
         appendRow([{ value: '' }], [cellStyle])
       }
       // Horas extras
-      if (exportSections.horasExtras) {
+      if (exportSections.horasExtras && extras.length >0) {
         appendMergedTitle('Horas extras', headerStyle)
         appendRow([
           { value: 'Funcionário' },
@@ -685,13 +685,12 @@ export function RelatoriosPage() {
                         <td className="px-6 py-4 text-slate-700">{item.tipo}</td>
                         <td className="px-6 py-4">
                           <span
-                            className={`rounded-full px-3 py-1 text-xs font-black shadow-sm ${
-                              item.tipo === 'Hora Extra'
+                            className={`rounded-full px-3 py-1 text-xs font-black shadow-sm ${item.tipo === 'Hora Extra'
                                 ? 'bg-emerald-100 text-emerald-800'
                                 : item.tipo === 'Atraso'
                                   ? 'bg-red-100 text-red-800'
                                   : 'bg-slate-100 text-slate-700'
-                            }`}
+                              }`}
                           >
                             {formatHours(item.saldoAbsoluto)}
                           </span>
@@ -712,24 +711,24 @@ export function RelatoriosPage() {
               ) : (
                 <>
                   <table className="w-full text-sm">
-                  <thead className="border-b bg-slate-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left font-semibold text-slate-900">Funcionário</th>
-                      <th className="px-6 py-3 text-left font-semibold text-slate-900">Dia</th>
-                      <th className="px-6 py-3 text-left font-semibold text-slate-900">Observação</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {paginatedAbsences.map((item, index) => (
-                      <tr key={`${item.funcionario}-${item.data}-${index}`} className="hover:bg-red-50">
-                        <td className="px-6 py-4 font-medium text-slate-900">{item.funcionario}</td>
-                        <td className="px-6 py-4 text-slate-700">
-                          {parseLocalDate(item.data).toLocaleDateString('pt-BR')}
-                        </td>
-                        <td className="px-6 py-4 text-slate-700">{item.observacao}</td>
+                    <thead className="border-b bg-slate-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Funcionário</th>
+                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Dia</th>
+                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Observação</th>
                       </tr>
-                    ))}
-                  </tbody>
+                    </thead>
+                    <tbody className="divide-y">
+                      {paginatedAbsences.map((item, index) => (
+                        <tr key={`${item.funcionario}-${item.data}-${index}`} className="hover:bg-red-50">
+                          <td className="px-6 py-4 font-medium text-slate-900">{item.funcionario}</td>
+                          <td className="px-6 py-4 text-slate-700">
+                            {parseLocalDate(item.data).toLocaleDateString('pt-BR')}
+                          </td>
+                          <td className="px-6 py-4 text-slate-700">{item.observacao}</td>
+                        </tr>
+                      ))}
+                    </tbody>
                   </table>
                   {renderPagination(
                     safeAbsencesPage,
@@ -818,38 +817,38 @@ export function RelatoriosPage() {
               ) : (
                 <>
                   <table className="w-full text-sm">
-                  <thead className="border-b bg-slate-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left font-semibold text-slate-900">Funcionário</th>
-                      <th className="px-6 py-3 text-left font-semibold text-slate-900">Horas previstas</th>
-                      <th className="px-6 py-3 text-left font-semibold text-slate-900">Horas trabalhadas</th>
-                      <th className="px-6 py-3 text-left font-semibold text-slate-900">Resultado</th>
-                      <th className="px-6 py-3 text-left font-semibold text-slate-900">Atraso consolidado</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {paginatedDelays.map((item, index) => (
-                      <tr key={`${item.funcionario}-${index}`} className="hover:bg-amber-50">
-                        <td className="px-6 py-4 font-medium text-slate-900">{item.funcionario}</td>
-                        <td className="px-6 py-4">
-                          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-900 shadow-sm">
-                            {formatHours(item.horasPlanejadas)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-900 shadow-sm">
-                            {formatHours(item.horasCumpridas)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-slate-700">{item.tipo}</td>
-                        <td className="px-6 py-4">
-                          <span className="rounded-full bg-red-600 px-3 py-1 text-xs font-black text-white shadow-sm">
-                            {formatHours(item.saldoAbsoluto)}
-                          </span>
-                        </td>
+                    <thead className="border-b bg-slate-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Funcionário</th>
+                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Horas previstas</th>
+                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Horas trabalhadas</th>
+                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Resultado</th>
+                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Atraso consolidado</th>
                       </tr>
-                    ))}
-                  </tbody>
+                    </thead>
+                    <tbody className="divide-y">
+                      {paginatedDelays.map((item, index) => (
+                        <tr key={`${item.funcionario}-${index}`} className="hover:bg-amber-50">
+                          <td className="px-6 py-4 font-medium text-slate-900">{item.funcionario}</td>
+                          <td className="px-6 py-4">
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-900 shadow-sm">
+                              {formatHours(item.horasPlanejadas)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-900 shadow-sm">
+                              {formatHours(item.horasCumpridas)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-slate-700">{item.tipo}</td>
+                          <td className="px-6 py-4">
+                            <span className="rounded-full bg-red-600 px-3 py-1 text-xs font-black text-white shadow-sm">
+                              {formatHours(item.saldoAbsoluto)}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
                   </table>
                   {renderPagination(
                     safeDelaysPage,
