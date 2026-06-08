@@ -43,7 +43,6 @@ const toMinutes = (time?: string) => {
 }
 
 const normalizeRangeMinutes = (start: number, end: number) => {
-  debugger
   if (end <= start) {
     return end + 24 * 60
   }
@@ -55,11 +54,6 @@ const formatHours = (hours: number) => {
   const totalMinutes = Math.round(Math.abs(hours) * 60)
   const formatted = `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`
   return hours < 0 ? `-${formatted}` : formatted
-}
-
-const toExcelDate = (date: string) => {
-  const parsedDate = parseLocalDate(date)
-  return new Date(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate(), 0, 0, 0, 0)
 }
 
 const toExcelDuration = (hours: number) => {
@@ -79,7 +73,6 @@ const getWorkedHours = (registro: RegistroPonto) => {
   ].filter((value): value is number => value != null)
 
   if (marcacoes.length < 2) return 0
-  debugger
   let totalMinutos = 0
   for (let i = 0; i + 1 < marcacoes.length; i += 2) {
     const inicio = marcacoes[i]
@@ -108,17 +101,22 @@ type ConsolidatedBalanceItem = {
   tipo: 'Atraso' | 'Hora Extra' | 'Exato'
 }
 
-type ExportCell = {
-  value: string | number | Date
-  type?: 's' | 'n' | 'd'
-  format?: string
-}
-
 type ExportSections = {
   faltas: boolean
   atestadosMedicos: boolean
   atrasos: boolean
   horasExtras: boolean
+}
+
+type MedicalCertificateItem = {
+  data: string
+  observacao: string
+}
+
+type MedicalCertificateGroup = {
+  funcionario: string
+  itens: MedicalCertificateItem[]
+  total: number
 }
 
 export function RelatoriosPage() {
@@ -234,8 +232,8 @@ export function RelatoriosPage() {
         }))
     ) ?? []
 
-  const medicalCertificatesByEmployee = Object.values(
-    medicalCertificates.reduce<Record<string, { funcionario: string; itens: { data: string; observacao: string }[] }>>((acc, item) => {
+  const medicalCertificatesByEmployee: MedicalCertificateGroup[] = Object.values(
+    medicalCertificates.reduce<Record<string, { funcionario: string; itens: MedicalCertificateItem[] }>>((acc, item) => {
       if (!acc[item.funcionario]) {
         acc[item.funcionario] = {
           funcionario: item.funcionario,
@@ -253,7 +251,7 @@ export function RelatoriosPage() {
   )
     .map((group) => ({
       ...group,
-      itens: group.itens.sort((a, b) => a.data.localeCompare(b.data, 'pt-BR')),
+      itens: [...group.itens].sort((a, b) => a.data.localeCompare(b.data, 'pt-BR')),
       total: group.itens.length,
     }))
     .sort((a, b) => a.funcionario.localeCompare(b.funcionario, 'pt-BR'))
@@ -337,10 +335,10 @@ export function RelatoriosPage() {
       let rowIndex = 0
       // Styles
       const borderStyle = {
-        top: { style: 'thin', color: { rgb: '000000' } },
-        bottom: { style: 'thin', color: { rgb: '000000' } },
-        left: { style: 'thin', color: { rgb: '000000' } },
-        right: { style: 'thin', color: { rgb: '000000' } },
+        top: { style: 'thin', color: { rgb: '595959' } },
+        bottom: { style: 'thin', color: { rgb: '595959' } },
+        left: { style: 'thin', color: { rgb: '888888' } },
+        right: { style: 'thin', color: { rgb: '888888' } },
       }
       // Todos os estilos sempre recebem a borda preta
       const titleStyle = {
@@ -355,9 +353,25 @@ export function RelatoriosPage() {
         alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
         border: borderStyle,
       }
+      const headerSecondaryStyle = {
+        font: { bold: true, color: { rgb: '16594d' } },
+        fill: { patternType: 'solid', fgColor: { rgb: 'ebf1de' } },
+        alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+        border: borderStyle,
+      }
+      const headerTertiaryStyle = {
+        font: { bold: true, color: { rgb: '16594d' } },
+        fill: { patternType: 'solid', fgColor: { rgb: 'ffffff' } },
+        alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+        border: borderStyle,
+      }
       const cellStyle = {
         alignment: { horizontal: 'center', vertical: 'center' },
         border: borderStyle,
+      }
+      const cellStyleNoBorder = {
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: {}
       }
       const atrasoStyle = {
         ...cellStyle,
@@ -387,46 +401,163 @@ export function RelatoriosPage() {
       }
       const appendMergedTitle = (text: string, style: any, lastColumnIndex = 4) => {
         appendRow([{ value: text }], [style])
+
         worksheet['!merges'] = worksheet['!merges'] || []
         worksheet['!merges'].push({ s: { r: rowIndex - 1, c: 0 }, e: { r: rowIndex - 1, c: lastColumnIndex } })
       }
       // Título
-      appendMergedTitle(`Relatório de Horas - ${formatDateLabel(startDate)} a ${formatDateLabel(endDate)}`, titleStyle)
-      appendRow([{ value: `Gerado em ${new Date().toLocaleString('pt-BR')}` }], [cellStyle])
-      appendRow([{ value: '' }], [cellStyle])
+      appendMergedTitle(
+        `Relatório de Horas - ${formatDateLabel(startDate)} a ${formatDateLabel(endDate)}`,
+        titleStyle
+      )
+
+      // Aumenta a altura da primeira linha (título)
+      worksheet['!rows'] = worksheet['!rows'] || []
+      worksheet['!rows'][0] = { hpt: 35 }
+
+      // Segunda linha
+      appendRow([
+        { value: `Gerado em ${new Date().toLocaleString('pt-BR')}` }
+      ], [cellStyle])
+
+      // Faz a segunda linha ocupar todas as colunas (A:E)
+      worksheet['!merges'] = worksheet['!merges'] || []
+      worksheet['!merges'].push({
+        s: { r: 1, c: 0 },
+        e: { r: 1, c: 4 }
+      })
+
+      // Opcional: aumenta a altura da segunda linha também
+      worksheet['!rows'][1] = { hpt: 25 }
       // Faltas
-      if (exportSections.faltas && absences.length >0) {
-        appendMergedTitle('Faltas', headerStyle, 2)
+      if (exportSections.faltas && absences.length > 0) {
+        appendMergedTitle('Faltas', headerStyle, 4)
+
+        worksheet['!merges'] = worksheet['!merges'] || []
+
         appendRow([
           { value: 'Funcionário' },
           { value: 'Dia' },
           { value: 'Observação' },
-        ], [headerStyle, headerStyle, headerStyle])
+          { value: '' },
+          { value: '' },
+        ], [
+          headerSecondaryStyle,
+          headerSecondaryStyle,
+          headerSecondaryStyle,
+          headerSecondaryStyle,
+          headerSecondaryStyle,
+        ])
+
+        const headerRow = rowIndex - 1
+
+        worksheet['!merges']!.push({
+          s: { r: headerRow, c: 2 }, // C
+          e: { r: headerRow, c: 4 }, // E
+        })
+
         absences.forEach(item => {
           appendRow([
             { value: item.funcionario },
-            { value: toExcelDate(item.data), type: 'd', format: 'dd/mm/yyyy' },
+            { value: parseLocalDate(item.data).toLocaleDateString('pt-BR') },
             { value: item.observacao },
-          ], [cellStyle, cellStyle, cellStyle])
+            { value: '' },
+            { value: '' },
+          ], [
+            cellStyle,
+            cellStyle,
+            cellStyle,
+            cellStyle,
+            cellStyle,
+          ])
+
+          const absenceRow = rowIndex - 1
+
+          worksheet['!merges']!.push({
+            s: { r: absenceRow, c: 2 }, // C
+            e: { r: absenceRow, c: 4 }, // E
+          })
         })
-        appendRow([{ value: '' }], [cellStyle])
       }
       // Atestados médicos
-      if (exportSections.atestadosMedicos && medicalCertificates.length >0) {
-        appendMergedTitle('Atestados médicos', headerStyle, 2)
-        appendRow([
-          { value: 'Funcionário' },
-          { value: 'Dia' },
-          { value: 'Observação' },
-        ], [headerStyle, headerStyle, headerStyle])
-        medicalCertificates.forEach(item => {
+      if (exportSections.atestadosMedicos && medicalCertificatesByEmployee.length > 0) {
+        appendMergedTitle('Atestados médicos', headerStyle)
+
+        worksheet['!merges'] = worksheet['!merges'] || []
+
+        medicalCertificatesByEmployee.forEach(group => {
+
+          // Funcionário + quantidade
           appendRow([
-            { value: item.funcionario },
-            { value: toExcelDate(item.data), type: 'd', format: 'dd/mm/yyyy' },
-            { value: item.observacao },
-          ], [cellStyle, cellStyle, cellStyle])
+            { value: group.funcionario },
+            { value: '' },
+            { value: '' },
+            { value: '' },
+            { value: "Quantidade:" + group.total }
+          ], [
+            headerSecondaryStyle,
+            headerSecondaryStyle,
+            headerSecondaryStyle,
+            headerSecondaryStyle,
+            headerSecondaryStyle
+          ])
+
+          const funcionarioRow = rowIndex - 1
+
+          worksheet['!merges']!.push({
+            s: { r: funcionarioRow, c: 0 },
+            e: { r: funcionarioRow, c: 3 }
+          })
+
+          // Cabeçalho dos detalhes
+          appendRow([
+            { value: 'Data' },
+            { value: 'Observação' },
+            { value: '' },
+            { value: '' },
+            { value: '' }
+          ], [
+            headerTertiaryStyle,
+            headerTertiaryStyle,
+            headerTertiaryStyle,
+            headerTertiaryStyle,
+            headerTertiaryStyle
+          ])
+
+          const cabecalhoRow = rowIndex - 1
+
+          worksheet['!merges']!.push({
+            s: { r: cabecalhoRow, c: 1 },
+            e: { r: cabecalhoRow, c: 4 }
+          })
+
+          // Datas e observações
+          const itens = group.itens ?? []
+
+          itens.forEach(item => {
+
+            appendRow([
+              { value: parseLocalDate(item.data).toLocaleDateString('pt-BR') },
+              { value: item.observacao || '' },
+              { value: '' },
+              { value: '' },
+              { value: '' }
+            ], [
+              cellStyle,
+              cellStyle,
+              cellStyle,
+              cellStyle,
+              cellStyle
+            ])
+
+            const detalheRow = rowIndex - 1
+
+            worksheet['!merges']!.push({
+              s: { r: detalheRow, c: 1 },
+              e: { r: detalheRow, c: 4 }
+            })
+          })
         })
-        appendRow([{ value: '' }], [cellStyle])
       }
       // Fechamento consolidado
       appendMergedTitle('Fechamento consolidado', headerStyle)
@@ -436,7 +567,7 @@ export function RelatoriosPage() {
         { value: 'Horas Trabalhadas' },
         { value: 'Resultado' },
         { value: 'Saldo Absoluto' },
-      ], [headerStyle, headerStyle, headerStyle, headerStyle, headerStyle])
+      ], [headerSecondaryStyle, headerSecondaryStyle, headerSecondaryStyle, headerSecondaryStyle, headerSecondaryStyle])
       consolidated.forEach(item => {
         const saldoStyle = item.tipo === 'Atraso' ? atrasoStyle : item.tipo === 'Hora Extra' ? extraStyle : cellStyle
         appendRow([
@@ -447,9 +578,8 @@ export function RelatoriosPage() {
           { value: toExcelDuration(item.saldoAbsoluto), type: 'n', format: '[hh]:mm' },
         ], [cellStyle, cellStyle, cellStyle, cellStyle, saldoStyle])
       })
-      appendRow([{ value: '' }], [cellStyle])
       // Atrasos
-      if (exportSections.atrasos && delays.length >0) {
+      if (exportSections.atrasos && delays.length > 0) {
         appendMergedTitle('Atrasos', headerStyle)
         appendRow([
           { value: 'Funcionário' },
@@ -457,7 +587,7 @@ export function RelatoriosPage() {
           { value: 'Horas Trabalhadas' },
           { value: 'Resultado' },
           { value: 'Atraso Consolidado' },
-        ], [headerStyle, headerStyle, headerStyle, headerStyle, headerStyle])
+        ], [headerSecondaryStyle, headerSecondaryStyle, headerSecondaryStyle, headerSecondaryStyle, headerSecondaryStyle])
         delays.forEach(item => {
           appendRow([
             { value: item.funcionario },
@@ -467,10 +597,10 @@ export function RelatoriosPage() {
             { value: toExcelDuration(item.saldoAbsoluto), type: 'n', format: '[hh]:mm' },
           ], [cellStyle, cellStyle, cellStyle, cellStyle, atrasoStyle])
         })
-        appendRow([{ value: '' }], [cellStyle])
+
       }
       // Horas extras
-      if (exportSections.horasExtras && extras.length >0) {
+      if (exportSections.horasExtras && extras.length > 0) {
         appendMergedTitle('Horas extras', headerStyle)
         appendRow([
           { value: 'Funcionário' },
@@ -478,7 +608,7 @@ export function RelatoriosPage() {
           { value: 'Horas Trabalhadas' },
           { value: 'Resultado' },
           { value: 'Hora Extra Consolidada' },
-        ], [headerStyle, headerStyle, headerStyle, headerStyle, headerStyle])
+        ], [headerSecondaryStyle, headerSecondaryStyle, headerSecondaryStyle, headerSecondaryStyle, headerSecondaryStyle])
         extras.forEach(item => {
           appendRow([
             { value: item.funcionario },
@@ -488,7 +618,7 @@ export function RelatoriosPage() {
             { value: toExcelDuration(item.saldoAbsoluto), type: 'n', format: '[hh]:mm' },
           ], [cellStyle, cellStyle, cellStyle, cellStyle, extraStyle])
         })
-        appendRow([{ value: '' }], [cellStyle])
+
       }
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Relatorio')
       const fileName = `Relatorio_Geral_${startDate}_a_${endDate}.xlsx`
@@ -679,17 +809,17 @@ export function RelatoriosPage() {
                   ) : (
                     consolidated.map((item) => (
                       <tr key={item.funcionario} className="hover:bg-slate-50">
-                        <td className="px-6 py-4 font-medium text-slate-900">{item.funcionario}</td>
+                        <td className="px-6 py-4 text-slate-700">{item.funcionario}</td>
                         <td className="px-6 py-4 text-slate-700">{formatHours(item.horasPlanejadas)}</td>
                         <td className="px-6 py-4 text-slate-700">{formatHours(item.horasCumpridas)}</td>
                         <td className="px-6 py-4 text-slate-700">{item.tipo}</td>
                         <td className="px-6 py-4">
                           <span
                             className={`rounded-full px-3 py-1 text-xs font-black shadow-sm ${item.tipo === 'Hora Extra'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : item.tipo === 'Atraso'
-                                  ? 'bg-red-100 text-red-800'
-                                  : 'bg-slate-100 text-slate-700'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : item.tipo === 'Atraso'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-slate-100 text-slate-700'
                               }`}
                           >
                             {formatHours(item.saldoAbsoluto)}
@@ -721,7 +851,7 @@ export function RelatoriosPage() {
                     <tbody className="divide-y">
                       {paginatedAbsences.map((item, index) => (
                         <tr key={`${item.funcionario}-${item.data}-${index}`} className="hover:bg-red-50">
-                          <td className="px-6 py-4 font-medium text-slate-900">{item.funcionario}</td>
+                          <td className="px-6 py-4 text-slate-700">{item.funcionario}</td>
                           <td className="px-6 py-4 text-slate-700">
                             {parseLocalDate(item.data).toLocaleDateString('pt-BR')}
                           </td>
@@ -772,7 +902,7 @@ export function RelatoriosPage() {
                                 }))
                               }
                             >
-                              <td className="px-6 py-4 font-medium text-slate-900">{group.funcionario}</td>
+                              <td className="px-6 py-4 text-slate-700">{group.funcionario}</td>
                               <td className="px-6 py-4 text-slate-700">{group.total}</td>
                               <td className="px-6 py-4 text-slate-700">{isExpanded ? 'Ocultar' : 'Ver dias e observações'}</td>
                             </tr>
@@ -781,7 +911,7 @@ export function RelatoriosPage() {
                               <tr key={`${group.funcionario}-details`} className="bg-blue-50/40">
                                 <td colSpan={3} className="px-6 py-4">
                                   <div className="space-y-2">
-                                    {group.itens.map((item, index) => (
+                                    {(group.itens ?? []).map((item, index) => (
                                       <div key={`${group.funcionario}-${item.data}-${index}`} className="rounded-lg border border-blue-100 bg-white px-4 py-3">
                                         <div className="text-sm font-semibold text-slate-900">
                                           {parseLocalDate(item.data).toLocaleDateString('pt-BR')}
@@ -829,7 +959,7 @@ export function RelatoriosPage() {
                     <tbody className="divide-y">
                       {paginatedDelays.map((item, index) => (
                         <tr key={`${item.funcionario}-${index}`} className="hover:bg-amber-50">
-                          <td className="px-6 py-4 font-medium text-slate-900">{item.funcionario}</td>
+                          <td className="px-6 py-4 text-slate-900">{item.funcionario}</td>
                           <td className="px-6 py-4">
                             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-900 shadow-sm">
                               {formatHours(item.horasPlanejadas)}
@@ -881,7 +1011,7 @@ export function RelatoriosPage() {
                     <tbody className="divide-y">
                       {paginatedExtras.map((item, index) => (
                         <tr key={`${item.funcionario}-${index}`} className="hover:bg-amber-50">
-                          <td className="px-6 py-4 font-medium text-slate-900">{item.funcionario}</td>
+                          <td className="px-6 py-4 text-slate-900">{item.funcionario}</td>
                           <td className="px-6 py-4">
                             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-900 shadow-sm">
                               {formatHours(item.horasPlanejadas)}
