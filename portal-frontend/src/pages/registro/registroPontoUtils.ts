@@ -81,14 +81,16 @@ export const getHorasPlanejadas = (registro: RegistroPonto) =>
 export const buildStatusPayload = (status: string): Record<string, string | boolean> => {
   if (status === 'Feriado' || status === 'Atestado Médico') {
     return {
+      folga: false,
       feriado: status === 'Feriado',
       atestadoMedico: status === 'Atestado Médico',
       presenca: false,
     }
   }
 
-  if (status === 'Falta' || status === 'Folga') {
+  if (status === 'Falta') {
     return {
+      folga: false,
       feriado: false,
       atestadoMedico: false,
       presenca: false,
@@ -96,6 +98,15 @@ export const buildStatusPayload = (status: string): Record<string, string | bool
       almocInicio: '',
       almocFim: '',
       saida: '',
+    }
+  }
+
+  if (status === 'Folga') {
+    return {
+      folga: true,
+      feriado: false,
+      atestadoMedico: false,
+      presenca: false,
     }
   }
 
@@ -112,6 +123,7 @@ export const buildStatusPayload = (status: string): Record<string, string | bool
   }
 
   return {
+    folga: false,
     feriado: false,
     atestadoMedico: false,
     presenca: true,

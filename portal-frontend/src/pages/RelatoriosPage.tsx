@@ -29,7 +29,7 @@ const parseLocalDate = (isoDate: string) => {
 }
 
 const toMinutes = (time?: string) => {
-  if (!time) return null
+  if (!time || time === '00:00') return null
 
   const [hours, minutes] = time.split(':').map(Number)
   if (Number.isNaN(hours) || Number.isNaN(minutes)) return null
@@ -38,6 +38,7 @@ const toMinutes = (time?: string) => {
 }
 
 const normalizeRangeMinutes = (start: number, end: number) => {
+  debugger
   if (end <= start) {
     return end + 24 * 60
   }
@@ -61,27 +62,27 @@ const toExcelDuration = (hours: number) => {
 }
 
 const getWorkedHours = (registro: RegistroPonto) => {
-  const entrada = toMinutes(registro.entrada)
-  const saida = toMinutes(registro.saida)
+  // Coleta todos os timestamps disponíveis em ordem e emparelha de 2 em 2.
+  // Assim, registros incompletos (ex.: entrada + almocInicio sem saída) ainda
+  // contribuem com as horas que estão registradas — essencial para folgas com
+  // marcação parcial que devem contar como hora extra.
+  const marcacoes = [
+    toMinutes(registro.entrada),
+    toMinutes(registro.almocInicio),
+    toMinutes(registro.almocFim),
+    toMinutes(registro.saida),
+  ].filter((value): value is number => value != null)
 
-  if (entrada == null || saida == null) return 0
-
-  const saidaNormalizada = normalizeRangeMinutes(entrada, saida)
-  let total = saidaNormalizada - entrada
-  const almocoInicio = toMinutes(registro.almocInicio)
-  const almocoFim = toMinutes(registro.almocFim)
-
-  if (almocoInicio != null && almocoFim != null) {
-    const almocoInicioNormalizado = almocoInicio < entrada ? almocoInicio + 24 * 60 : almocoInicio
-    const almocoFimBase = almocoFim < entrada ? almocoFim + 24 * 60 : almocoFim
-    const almocoFimNormalizado = normalizeRangeMinutes(almocoInicioNormalizado, almocoFimBase)
-
-    if (almocoInicioNormalizado >= entrada && almocoFimNormalizado <= saidaNormalizada) {
-      total -= almocoFimNormalizado - almocoInicioNormalizado
-    }
+  if (marcacoes.length < 2) return 0
+debugger
+  let totalMinutos = 0
+  for (let i = 0; i + 1 < marcacoes.length; i += 2) {
+    const inicio = marcacoes[i]
+    const fim = normalizeRangeMinutes(inicio, marcacoes[i + 1])
+    totalMinutos += fim - inicio
   }
 
-  return total / 60
+  return totalMinutos / 60
 }
 
 type EmployeeReport = {
@@ -156,9 +157,9 @@ export function RelatoriosPage() {
 
           const totals = registros.reduce(
             (acc, registro) => {
-              // Jornada prevista de feriado/atestado é sempre 0
-              const horasPlanejadasDoDia = (registro.feriado || registro.atestadoMedico) ? 0 : (registro.horasPrevistas ?? 0)
-              // Em feriado/atestado, todas as horas registradas são extras
+              // Jornada prevista de folga, feriado e atestado é sempre 0
+              const horasPlanejadasDoDia = (registro.folga || registro.feriado || registro.atestadoMedico) ? 0 : (registro.horasPrevistas ?? 0)
+              // Em folga, feriado e atestado, todas as horas registradas são extras
               const horasCumpridasDoDia = getWorkedHours(registro)
               acc.horasPlanejadas += horasPlanejadasDoDia
               acc.horasCumpridas += horasCumpridasDoDia

@@ -144,6 +144,7 @@ export interface RegistroPonto {
   saidaPlanejada?: string
   horasPrevistas?: number
   presenca: boolean
+  folga: boolean
   feriado: boolean
   atestadoMedico: boolean
   observacao?: string
@@ -161,6 +162,7 @@ export interface CreateRegistroPontoDTO {
   almocFim?: string
   saida?: string
   presenca: boolean
+  folga?: boolean
   feriado?: boolean
   atestadoMedico?: boolean
   observacao?: string

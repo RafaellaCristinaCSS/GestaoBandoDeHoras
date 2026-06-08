@@ -16,6 +16,7 @@ namespace Portal.Models
         public string HoraAlmocoFim { get; set; }
         public string HoraSaida { get; set; }
         public bool Presenca { get; set; }
+        public bool Folga { get; set; }
         public bool Feriado { get; set; }
         public bool AtestadoMedico { get; set; }
         public string Observacao { get; set; }

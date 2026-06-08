@@ -63,6 +63,7 @@ namespace Portal.Services
                         HoraAlmocoFim = string.Empty,
                         HoraSaida = string.Empty,
                         Presenca = true,
+                        Folga = false,
                         Feriado = false,
                         Observacao = string.Empty,
                         // Referências históricas salvas no registro para cálculos futuros
@@ -73,7 +74,7 @@ namespace Portal.Services
                         Excluded = false
                     };
 
-                    RegistroPontoEscalaRules.ApplyEscala(novo, detalhe);
+                    RegistroPontoEscalaRules.ApplyEscala(novo, detalhe, aplicarFolga: true);
 
                     await _repository.AddAsync(novo);
                 }
@@ -103,20 +104,24 @@ namespace Portal.Services
                 }
 
                 var detalhe = RegistroPontoEscalaRules.ResolveDetalheParaRegistro(registro);
-                if (detalhe == null || detalhe.Folga)
+                if (detalhe == null)
                     continue;
 
                 var entradaAnterior = registro.HoraEntrada;
                 var almocoInicioAnterior = registro.HoraAlmocoInicio;
                 var almocoFimAnterior = registro.HoraAlmocoFim;
                 var saidaAnterior = registro.HoraSaida;
+                var presencaAnterior = registro.Presenca;
+                var folgaAnterior = registro.Folga;
 
-                RegistroPontoEscalaRules.ApplyEscala(registro, detalhe, sobrescreverHorarios: true);
+                RegistroPontoEscalaRules.ApplyEscala(registro, detalhe, sobrescreverHorarios: true, aplicarFolga: true);
 
                 if (registro.HoraEntrada != entradaAnterior
                     || registro.HoraAlmocoInicio != almocoInicioAnterior
                     || registro.HoraAlmocoFim != almocoFimAnterior
-                    || registro.HoraSaida != saidaAnterior)
+                    || registro.HoraSaida != saidaAnterior
+                    || registro.Presenca != presencaAnterior
+                    || registro.Folga != folgaAnterior)
                 {
                     await _repository.UpdateAsync(registro);
                     atualizouRegistrosExistentes = true;
@@ -154,6 +159,7 @@ namespace Portal.Services
             entity.HoraAlmocoFim = dto.AlmocFim ?? string.Empty;
             entity.HoraSaida = dto.Saida ?? string.Empty;
             entity.Presenca = dto.Presenca;
+            entity.Folga = dto.Folga;
             entity.Feriado = dto.Feriado;
             entity.AtestadoMedico = dto.AtestadoMedico;
             entity.Observacao = dto.Observacao ?? string.Empty;
@@ -163,7 +169,7 @@ namespace Portal.Services
 
             if (!entity.Feriado && !entity.AtestadoMedico)
             {
-                RegistroPontoEscalaRules.ApplyEscala(entity, escalaDoDia);
+                RegistroPontoEscalaRules.ApplyEscala(entity, escalaDoDia, aplicarFolga: true);
             }
 
             entity.StartDate = DateTime.UtcNow;
@@ -207,7 +213,8 @@ namespace Portal.Services
                 {
                     // Se campos de horário vierem vazios, reaplica a escala válida para a data/funcionário informados.
                     var detalhe = RegistroPontoEscalaRules.ResolveDetalheParaData(dataEfetiva, vincEscala);
-                    RegistroPontoEscalaRules.ApplyEscala(entity, detalhe);
+                    var deveAplicarFolgaEscala = !entity.ChangeDate.HasValue || dto.FuncionarioId != null || dto.Data != null;
+                    RegistroPontoEscalaRules.ApplyEscala(entity, detalhe, aplicarFolga: deveAplicarFolgaEscala);
                 }
             }
 
@@ -217,6 +224,8 @@ namespace Portal.Services
             entity.HoraSaida = dto.Saida ?? entity.HoraSaida;
             if (dto.Presenca != null)
                 entity.Presenca = dto.Presenca ?? entity.Presenca;
+            if (dto.Folga != null)
+                entity.Folga = dto.Folga ?? entity.Folga;
             if (dto.Feriado != null)
                 entity.Feriado = dto.Feriado ?? entity.Feriado;
             if (dto.AtestadoMedico != null)

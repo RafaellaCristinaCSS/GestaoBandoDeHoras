@@ -10,13 +10,6 @@ namespace Portal.Services.Registro
                 || !string.IsNullOrWhiteSpace(registro.HoraAlmocoFim)
                 || !string.IsNullOrWhiteSpace(registro.HoraSaida);
 
-        public static bool IsFolgaManual(RegistroPonto registro, EscalaDetalhe? detalhe = null)
-            => !registro.Feriado
-                && !registro.AtestadoMedico
-                && !registro.Presenca
-                && !HasMarcacaoReal(registro)
-                && detalhe?.Folga != true;
-
         public static string BuildStatus(RegistroPonto registro, EscalaDetalhe? detalhe)
         {
             if (registro.Feriado)
@@ -24,7 +17,7 @@ namespace Portal.Services.Registro
             if (registro.AtestadoMedico)
                 return "Atestado Médico";
 
-            if (detalhe?.Folga == true || IsFolgaManual(registro, detalhe))
+            if (registro.Folga)
                 return "Folga";
 
             if (!registro.Presenca)

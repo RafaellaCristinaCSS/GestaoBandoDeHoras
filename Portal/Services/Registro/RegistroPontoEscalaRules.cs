@@ -118,10 +118,34 @@ namespace Portal.Services.Registro
             return registro.Escala.Detalhes.FirstOrDefault(d => d.DiaSemana == diaSemana);
         }
 
-        public static void ApplyEscala(RegistroPonto registro, EscalaDetalhe? detalhe, bool sobrescreverHorarios = false)
+        public static void ApplyEscala(RegistroPonto registro, EscalaDetalhe? detalhe, bool sobrescreverHorarios = false, bool aplicarFolga = false)
         {
-            if (detalhe == null || detalhe.Folga)
+            if (detalhe == null)
                 return;
+
+            if (detalhe.Folga)
+            {
+                if (aplicarFolga)
+                {
+                    registro.Folga = true;
+                    registro.Presenca = false;
+
+                    if (sobrescreverHorarios || !RegistroPontoStatusRules.HasMarcacaoReal(registro))
+                    {
+                        registro.HoraEntrada = string.Empty;
+                        registro.HoraAlmocoInicio = string.Empty;
+                        registro.HoraAlmocoFim = string.Empty;
+                        registro.HoraSaida = string.Empty;
+                    }
+                }
+
+                return;
+            }
+
+            if (aplicarFolga)
+            {
+                registro.Folga = false;
+            }
 
             registro.HoraEntrada = sobrescreverHorarios || string.IsNullOrWhiteSpace(registro.HoraEntrada)
                 ? detalhe.HoraInicio
