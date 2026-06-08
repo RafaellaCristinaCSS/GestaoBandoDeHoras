@@ -155,7 +155,9 @@ namespace Portal.Services
             entity.Cargo = dto.Cargo ?? entity.Cargo;
             if (dto.DataAdmissao.HasValue)
                 entity.DataAdmissao = NormalizarDataUtc(dto.DataAdmissao.Value);
-            if (dto.DataDemissao.HasValue)
+            if (dto.RemoverDataDemissao == true)
+                entity.DataDemissao = null;
+            else if (dto.DataDemissao.HasValue)
                 entity.DataDemissao = NormalizarDataUtc(dto.DataDemissao.Value);
 
             if (entity.DataDemissao.HasValue && entity.DataDemissao.Value.Date < entity.DataAdmissao.Date)

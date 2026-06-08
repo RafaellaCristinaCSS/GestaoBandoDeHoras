@@ -19,7 +19,9 @@ export interface CreateFuncionarioDTO {
   dataDemissao?: string
 }
 
-export interface UpdateFuncionarioDTO extends Partial<CreateFuncionarioDTO> {}
+export interface UpdateFuncionarioDTO extends Partial<CreateFuncionarioDTO> {
+  removerDataDemissao?: boolean
+}
 
 // Cargo
 export interface Cargo {

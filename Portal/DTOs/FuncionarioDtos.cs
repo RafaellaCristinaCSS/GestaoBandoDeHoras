@@ -23,6 +23,7 @@ namespace Portal.DTOs
         public int? EscalaId { get; set; }
         public DateTime? DataAdmissao { get; set; }
         public DateTime? DataDemissao { get; set; }
+        public bool? RemoverDataDemissao { get; set; }
 
         public int? UpdatedByUserId { get; set; }
     }

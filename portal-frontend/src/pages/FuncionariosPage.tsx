@@ -7,7 +7,7 @@ import { Loading } from '@/components/Loading'
 import { EmptyState } from '@/components/EmptyState'
 import { Modal } from '@/components/Modal'
 import { FuncionarioForm, FuncionarioFormData } from '@/components/FuncionarioForm'
-import { Funcionario } from '@/types/api'
+import { Funcionario, UpdateFuncionarioDTO } from '@/types/api'
 import { Toast } from '@/components/Toast'
 
 type SortField = 'nome' | 'cargo' | 'escalaNome' | 'dataAdmissao' | 'dataDemissao'
@@ -102,9 +102,18 @@ export function FuncionariosPage() {
       const estavaSemEscala = !funcionarioAntesDaEdicao?.escalaId
       const possuiEscalaNoEnvio = Boolean(data.escalaId)
 
+      const payload: UpdateFuncionarioDTO = {
+        ...data,
+        removerDataDemissao: !data.dataDemissao,
+      }
+
+      if (!data.dataDemissao) {
+        delete payload.dataDemissao
+      }
+
       updateMutation.mutate({
         id: editingId,
-        data,
+        data: payload,
         regenerarRegistros: estavaSemEscala && possuiEscalaNoEnvio,
       })
     } else {
