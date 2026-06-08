@@ -132,6 +132,8 @@ export function RelatoriosPage() {
     horasExtras: true,
   })
   const [absencesPage, setAbsencesPage] = useState(1)
+  const [medicalCertificatesPage, setMedicalCertificatesPage] = useState(1)
+  const [expandedMedicalEmployees, setExpandedMedicalEmployees] = useState<Record<string, boolean>>({})
   const [delaysPage, setDelaysPage] = useState(1)
   const [extrasPage, setExtrasPage] = useState(1)
   const pageSize = 10
@@ -219,6 +221,41 @@ export function RelatoriosPage() {
       }))
     ) ?? []
 
+  const medicalCertificates =
+    reportData?.flatMap((item) =>
+      item.registros
+        .filter((registro) => registro.atestadoMedico)
+        .map((registro) => ({
+          funcionario: item.funcionario.nome,
+          data: registro.data,
+          observacao: registro.observacao || '-',
+        }))
+    ) ?? []
+
+  const medicalCertificatesByEmployee = Object.values(
+    medicalCertificates.reduce<Record<string, { funcionario: string; itens: { data: string; observacao: string }[] }>>((acc, item) => {
+      if (!acc[item.funcionario]) {
+        acc[item.funcionario] = {
+          funcionario: item.funcionario,
+          itens: [],
+        }
+      }
+
+      acc[item.funcionario].itens.push({
+        data: item.data,
+        observacao: item.observacao,
+      })
+
+      return acc
+    }, {})
+  )
+    .map((group) => ({
+      ...group,
+      itens: group.itens.sort((a, b) => a.data.localeCompare(b.data, 'pt-BR')),
+      total: group.itens.length,
+    }))
+    .sort((a, b) => a.funcionario.localeCompare(b.funcionario, 'pt-BR'))
+
   const delays =
     reportData
       ?.filter((item) => item.saldoHoras < 0)
@@ -257,14 +294,17 @@ export function RelatoriosPage() {
   const monthly = reportData ?? []
 
   const absencesTotalPages = Math.max(1, Math.ceil(absences.length / pageSize))
+  const medicalCertificatesTotalPages = Math.max(1, Math.ceil(medicalCertificatesByEmployee.length / pageSize))
   const delaysTotalPages = Math.max(1, Math.ceil(delays.length / pageSize))
   const extrasTotalPages = Math.max(1, Math.ceil(extras.length / pageSize))
 
   const safeAbsencesPage = Math.min(absencesPage, absencesTotalPages)
+  const safeMedicalCertificatesPage = Math.min(medicalCertificatesPage, medicalCertificatesTotalPages)
   const safeDelaysPage = Math.min(delaysPage, delaysTotalPages)
   const safeExtrasPage = Math.min(extrasPage, extrasTotalPages)
 
   const paginatedAbsences = absences.slice((safeAbsencesPage - 1) * pageSize, safeAbsencesPage * pageSize)
+  const paginatedMedicalCertificatesByEmployee = medicalCertificatesByEmployee.slice((safeMedicalCertificatesPage - 1) * pageSize, safeMedicalCertificatesPage * pageSize)
   const paginatedDelays = delays.slice((safeDelaysPage - 1) * pageSize, safeDelaysPage * pageSize)
   const paginatedExtras = extras.slice((safeExtrasPage - 1) * pageSize, safeExtrasPage * pageSize)
 
@@ -565,10 +605,14 @@ export function RelatoriosPage() {
         />
       ) : (
         <>
-          <div className="mb-6 grid grid-cols-3 gap-4">
+          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-xl border border-red-200 bg-red-50 p-6 shadow-sm">
               <div className="text-sm font-semibold text-red-700">Faltas</div>
               <div className="mt-2 text-3xl font-black text-red-700">{absences.length}</div>
+            </div>
+            <div className="rounded-xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
+              <div className="text-sm font-semibold text-blue-700">Atestados médicos</div>
+              <div className="mt-2 text-3xl font-black text-blue-700">{medicalCertificates.length}</div>
             </div>
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
               <div className="text-sm font-semibold text-amber-700">Atraso consolidado</div>
@@ -664,6 +708,74 @@ export function RelatoriosPage() {
                     absencesTotalPages,
                     () => setAbsencesPage((page) => Math.max(1, page - 1)),
                     () => setAbsencesPage((page) => Math.min(absencesTotalPages, page + 1))
+                  )}
+                </>
+              )}
+            </section>
+
+            <section className="overflow-hidden rounded-xl bg-white shadow">
+              <div className="border-b border-slate-200 px-6 py-4">
+                <h2 className="text-xl font-bold text-slate-900">Atestados médicos</h2>
+              </div>
+              {medicalCertificates.length === 0 ? (
+                <div className="px-6 py-10 text-sm text-slate-500">Nenhum atestado médico encontrado no período.</div>
+              ) : (
+                <>
+                  <table className="w-full text-sm">
+                    <thead className="border-b bg-slate-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Funcionário</th>
+                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Qtd. de atestados</th>
+                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Detalhes</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {paginatedMedicalCertificatesByEmployee.map((group) => {
+                        const isExpanded = Boolean(expandedMedicalEmployees[group.funcionario])
+
+                        return (
+                          <>
+                            <tr
+                              key={group.funcionario}
+                              className="cursor-pointer hover:bg-blue-50"
+                              onClick={() =>
+                                setExpandedMedicalEmployees((prev) => ({
+                                  ...prev,
+                                  [group.funcionario]: !prev[group.funcionario],
+                                }))
+                              }
+                            >
+                              <td className="px-6 py-4 font-medium text-slate-900">{group.funcionario}</td>
+                              <td className="px-6 py-4 text-slate-700">{group.total}</td>
+                              <td className="px-6 py-4 text-slate-700">{isExpanded ? 'Ocultar' : 'Ver dias e observações'}</td>
+                            </tr>
+
+                            {isExpanded && (
+                              <tr key={`${group.funcionario}-details`} className="bg-blue-50/40">
+                                <td colSpan={3} className="px-6 py-4">
+                                  <div className="space-y-2">
+                                    {group.itens.map((item, index) => (
+                                      <div key={`${group.funcionario}-${item.data}-${index}`} className="rounded-lg border border-blue-100 bg-white px-4 py-3">
+                                        <div className="text-sm font-semibold text-slate-900">
+                                          {parseLocalDate(item.data).toLocaleDateString('pt-BR')}
+                                        </div>
+                                        <div className="text-sm text-slate-700">Observação: {item.observacao}</div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                  {renderPagination(
+                    safeMedicalCertificatesPage,
+                    medicalCertificatesTotalPages,
+                    () => setMedicalCertificatesPage((page) => Math.max(1, page - 1)),
+                    () => setMedicalCertificatesPage((page) => Math.min(medicalCertificatesTotalPages, page + 1))
                   )}
                 </>
               )}
