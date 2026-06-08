@@ -116,6 +116,7 @@ type ExportCell = {
 
 type ExportSections = {
   faltas: boolean
+  atestadosMedicos: boolean
   atrasos: boolean
   horasExtras: boolean
 }
@@ -128,6 +129,7 @@ export function RelatoriosPage() {
   const [isExporting, setIsExporting] = useState(false)
   const [exportSections, setExportSections] = useState<ExportSections>({
     faltas: true,
+    atestadosMedicos: true,
     atrasos: true,
     horasExtras: true,
   })
@@ -429,6 +431,23 @@ export function RelatoriosPage() {
         })
         appendRow([{ value: '' }], [cellStyle])
       }
+      // Atestados médicos
+      if (exportSections.atestadosMedicos) {
+        appendMergedTitle('Atestados médicos', headerStyle)
+        appendRow([
+          { value: 'Funcionário' },
+          { value: 'Dia' },
+          { value: 'Observação' },
+        ], [headerStyle, headerStyle, headerStyle])
+        medicalCertificates.forEach(item => {
+          appendRow([
+            { value: item.funcionario },
+            { value: toExcelDate(item.data), type: 'd', format: 'dd/mm/yyyy' },
+            { value: item.observacao },
+          ], [cellStyle, cellStyle, cellStyle])
+        })
+        appendRow([{ value: '' }], [cellStyle])
+      }
       // Atrasos
       if (exportSections.atrasos) {
         appendMergedTitle('Atrasos', headerStyle)
@@ -572,6 +591,15 @@ export function RelatoriosPage() {
                   onChange={(e) => setExportSections((prev) => ({ ...prev, faltas: e.target.checked }))}
                 />
                 Faltas
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="rounded border-slate-300"
+                  checked={exportSections.atestadosMedicos}
+                  onChange={(e) => setExportSections((prev) => ({ ...prev, atestadosMedicos: e.target.checked }))}
+                />
+                Atestados médicos
               </label>
               <label className="inline-flex items-center gap-2 text-sm text-slate-700">
                 <input
