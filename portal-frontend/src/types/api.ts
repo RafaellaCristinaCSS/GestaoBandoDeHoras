@@ -6,7 +6,8 @@ export interface Funcionario {
   cargaHorariaSemanal: number
   escalaId?: number
   escalaNome?: string
-  ativo: boolean
+  dataAdmissao: string
+  dataDemissao?: string
   dataCadastro?: string
 }
 
@@ -14,7 +15,8 @@ export interface CreateFuncionarioDTO {
   nome: string
   cargo: string
   escalaId: number
-  ativo: boolean
+  dataAdmissao: string
+  dataDemissao?: string
 }
 
 export interface UpdateFuncionarioDTO extends Partial<CreateFuncionarioDTO> {}

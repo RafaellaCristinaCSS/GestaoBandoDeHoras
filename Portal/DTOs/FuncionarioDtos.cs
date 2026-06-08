@@ -8,7 +8,8 @@ namespace Portal.DTOs
         public string Nome { get; set; }
         public string Cargo { get; set; }
         public int EscalaId { get; set; }
-        public bool Ativo { get; set; }
+        public DateTime DataAdmissao { get; set; }
+        public DateTime? DataDemissao { get; set; }
 
         public int CreatedByUserId { get; set; }
     }
@@ -20,7 +21,8 @@ namespace Portal.DTOs
         public string? Nome { get; set; }
         public string? Cargo { get; set; }
         public int? EscalaId { get; set; }
-        public bool? Ativo { get; set; }
+        public DateTime? DataAdmissao { get; set; }
+        public DateTime? DataDemissao { get; set; }
 
         public int? UpdatedByUserId { get; set; }
     }
@@ -34,7 +36,8 @@ namespace Portal.DTOs
         public int CargaHorariaSemanal { get; set; }
         public int? EscalaId { get; set; }
         public string? EscalaNome { get; set; }
-        public bool Ativo { get; set; }
+        public DateTime DataAdmissao { get; set; }
+        public DateTime? DataDemissao { get; set; }
 
 
         public int CreatedByUserId { get; set; }

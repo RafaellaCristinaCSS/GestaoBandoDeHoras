@@ -13,6 +13,8 @@ namespace Portal.Models
         public string Cargo { get; set; }
         public int CargaHorariaSemanal { get; set; }
         public bool Ativo { get; set; }
+        public DateTime DataAdmissao { get; set; }
+        public DateTime? DataDemissao { get; set; }
 
 
         public int CreatedByUserId { get; set; }

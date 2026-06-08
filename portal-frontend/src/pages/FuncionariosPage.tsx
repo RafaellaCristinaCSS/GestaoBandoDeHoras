@@ -10,8 +10,22 @@ import { FuncionarioForm, FuncionarioFormData } from '@/components/FuncionarioFo
 import { Funcionario } from '@/types/api'
 import { Toast } from '@/components/Toast'
 
-type SortField = 'nome' | 'cargo' | 'escalaNome' | 'ativo'
+type SortField = 'nome' | 'cargo' | 'escalaNome' | 'dataAdmissao' | 'dataDemissao'
 type SortDirection = 'asc' | 'desc'
+
+const toInputDate = (value?: string) => {
+  if (!value) return ''
+  return value.length >= 10 ? value.slice(0, 10) : value
+}
+
+const getStatusFuncionario = (funcionario: Funcionario) => {
+  if (!funcionario.dataDemissao) return 'Admitido'
+  const hoje = new Date()
+  const dataDemissao = new Date(funcionario.dataDemissao)
+  return dataDemissao >= new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())
+    ? 'Admitido'
+    : 'Demitido'
+}
 
 export function FuncionariosPage() {
   const queryClient = useQueryClient()
@@ -113,9 +127,10 @@ export function FuncionariosPage() {
   const sortedFuncionarios = [...filteredFuncionarios].sort((a, b) => {
     const direction = sortDirection === 'asc' ? 1 : -1
 
-    if (sortField === 'ativo') {
-      if (a.ativo === b.ativo) return a.nome.localeCompare(b.nome, 'pt-BR') * direction
-      return (a.ativo ? 1 : 0) > (b.ativo ? 1 : 0) ? direction : -direction
+    if (sortField === 'dataAdmissao' || sortField === 'dataDemissao') {
+      const valueA = toInputDate(a[sortField] as string | undefined)
+      const valueB = toInputDate(b[sortField] as string | undefined)
+      return valueA.localeCompare(valueB, 'pt-BR', { sensitivity: 'base' }) * direction
     }
 
     const valueA = (a[sortField] ?? '').toString()
@@ -197,7 +212,8 @@ export function FuncionariosPage() {
                   <option value="nome">Nome</option>
                   <option value="cargo">Cargo</option>
                   <option value="escalaNome">Escala</option>
-                  <option value="ativo">Status</option>
+                  <option value="dataAdmissao">Data de admissão</option>
+                  <option value="dataDemissao">Data de demissão</option>
                 </select>
               </div>
 
@@ -228,7 +244,9 @@ export function FuncionariosPage() {
                   <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Nome</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Cargo</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Escala</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Status</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Admissão</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Demissão</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Situação</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Ações</th>
                 </tr>
               </thead>
@@ -238,15 +256,17 @@ export function FuncionariosPage() {
                     <td className="px-6 py-4 text-sm text-slate-900">{func.nome}</td>
                     <td className="px-6 py-4 text-sm text-slate-600">{func.cargo}</td>
                     <td className="px-6 py-4 text-sm text-slate-600">{func.escalaNome ?? '-'}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600">{toInputDate(func.dataAdmissao) || '-'}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600">{toInputDate(func.dataDemissao) || '-'}</td>
                     <td className="px-6 py-4 text-sm">
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          func.ativo
+                          getStatusFuncionario(func) === 'Admitido'
                             ? 'bg-green-100 text-green-800'
                             : 'bg-red-100 text-red-800'
                         }`}
                       >
-                        {func.ativo ? 'Ativo' : 'Inativo'}
+                        {getStatusFuncionario(func)}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm">

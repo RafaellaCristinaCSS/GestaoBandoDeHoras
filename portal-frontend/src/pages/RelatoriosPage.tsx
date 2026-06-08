@@ -28,6 +28,11 @@ const parseLocalDate = (isoDate: string) => {
   return new Date(year, month - 1, day)
 }
 
+const toInputDate = (value?: string) => {
+  if (!value) return ''
+  return value.length >= 10 ? value.slice(0, 10) : value
+}
+
 const toMinutes = (time?: string) => {
   if (!time || time === '00:00') return null
 
@@ -137,7 +142,18 @@ export function RelatoriosPage() {
     queryFn: funcionarioService.getAll,
   })
 
-  const activeFuncionarios = (funcionarios ?? []).filter((funcionario) => funcionario.ativo)
+  const activeFuncionarios = (funcionarios ?? []).filter((funcionario) => {
+    if (!startDate || !endDate) return false
+
+    const dataAdmissao = parseLocalDate(toInputDate(funcionario.dataAdmissao))
+    const dataDemissao = funcionario.dataDemissao ? parseLocalDate(toInputDate(funcionario.dataDemissao)) : null
+    const inicioPeriodo = parseLocalDate(startDate)
+    const fimPeriodo = parseLocalDate(endDate)
+
+    // Considera no relatório apenas quem teve vínculo ativo em algum dia do período.
+    // A partir da data de demissão (inclusive), o funcionário deixa de ser considerado.
+    return dataAdmissao <= fimPeriodo && (!dataDemissao || dataDemissao > inicioPeriodo)
+  })
 
   const { data: reportData, isLoading: isLoadingReport } = useQuery<EmployeeReport[]>({
     queryKey: [
@@ -151,11 +167,19 @@ export function RelatoriosPage() {
       const reports = await Promise.all(
         activeFuncionarios.map(async (funcionario) => {
           const registros = await registroPontoService.getAll(funcionario.id, undefined, undefined, startDate, endDate)
+          const dataAdmissao = parseLocalDate(toInputDate(funcionario.dataAdmissao))
+          const dataDemissao = funcionario.dataDemissao ? parseLocalDate(toInputDate(funcionario.dataDemissao)) : null
+          const registrosNoVinculo = registros.filter((registro) => {
+            const dataRegistro = parseLocalDate(registro.data)
+            if (dataRegistro < dataAdmissao) return false
+            if (dataDemissao && dataRegistro >= dataDemissao) return false
+            return true
+          })
 
           // Faltas: não considerar feriado/atestado sem registro como falta
-          const faltas = registros.filter((registro) => registro.status === 'Falta' && !registro.feriado && !registro.atestadoMedico)
+          const faltas = registrosNoVinculo.filter((registro) => registro.status === 'Falta' && !registro.feriado && !registro.atestadoMedico)
 
-          const totals = registros.reduce(
+          const totals = registrosNoVinculo.reduce(
             (acc, registro) => {
               // Jornada prevista de folga, feriado e atestado é sempre 0
               const horasPlanejadasDoDia = (registro.folga || registro.feriado || registro.atestadoMedico) ? 0 : (registro.horasPrevistas ?? 0)
@@ -173,7 +197,7 @@ export function RelatoriosPage() {
 
           return {
             funcionario,
-            registros,
+            registros: registrosNoVinculo,
             faltas,
             horasPlanejadas: totals.horasPlanejadas,
             horasCumpridas: totals.horasCumpridas,

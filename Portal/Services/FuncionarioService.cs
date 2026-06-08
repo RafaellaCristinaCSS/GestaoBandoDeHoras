@@ -38,6 +38,12 @@ namespace Portal.Services
             return dataInicio.Date;
         }
 
+        private static DateTime NormalizarDataUtc(DateTime data)
+            => DateTime.SpecifyKind(data.Date, DateTimeKind.Utc);
+
+        private static DateTime? NormalizarDataUtc(DateTime? data)
+            => data.HasValue ? NormalizarDataUtc(data.Value) : null;
+
         private async Task<FuncionarioReadDto> ToReadDtoAsync(Funcionario entity)
         {
             var escalaAtual = await _funcionarioEscalaRepository.GetCurrentByFuncionarioIdAsync(entity.Id);
@@ -51,7 +57,8 @@ namespace Portal.Services
                 CargaHorariaSemanal = entity.CargaHorariaSemanal,
                 EscalaId = escalaAtual?.EscalaId,
                 EscalaNome = escalaAtual?.Escala?.Nome,
-                Ativo = entity.Ativo,
+                DataAdmissao = entity.DataAdmissao,
+                DataDemissao = entity.DataDemissao,
                 StartDate = entity.StartDate,
                 ChangeDate = entity.ChangeDate,
                 Excluded = entity.Excluded
@@ -89,11 +96,19 @@ namespace Portal.Services
 
             var entity = new Funcionario();
 
+            var dataAdmissao = NormalizarDataUtc(dto.DataAdmissao);
+            var dataDemissao = NormalizarDataUtc(dto.DataDemissao);
+
+            if (dataDemissao.HasValue && dataDemissao.Value.Date < dataAdmissao.Date)
+                throw new Exception("Data de demissão não pode ser anterior à data de admissão.");
+
             entity.FuncionarioId = dto.FuncionarioId;
             entity.Nome = dto.Nome;
             entity.Cargo = dto.Cargo;
             entity.CargaHorariaSemanal = (int)escala.CargaHorariaSemanal;
-            entity.Ativo = dto.Ativo;
+            entity.DataAdmissao = dataAdmissao;
+            entity.DataDemissao = dataDemissao;
+            entity.Ativo = !entity.DataDemissao.HasValue || entity.DataDemissao.Value.Date >= DateTime.UtcNow.Date;
 
             entity.StartDate = DateTime.UtcNow;
             entity.Excluded = false;
@@ -138,8 +153,15 @@ namespace Portal.Services
                 entity.FuncionarioId = dto.FuncionarioId ?? entity.FuncionarioId;
             entity.Nome = dto.Nome ?? entity.Nome;
             entity.Cargo = dto.Cargo ?? entity.Cargo;
-            if (dto.Ativo != null)
-                entity.Ativo = dto.Ativo ?? entity.Ativo;
+            if (dto.DataAdmissao.HasValue)
+                entity.DataAdmissao = NormalizarDataUtc(dto.DataAdmissao.Value);
+            if (dto.DataDemissao.HasValue)
+                entity.DataDemissao = NormalizarDataUtc(dto.DataDemissao.Value);
+
+            if (entity.DataDemissao.HasValue && entity.DataDemissao.Value.Date < entity.DataAdmissao.Date)
+                throw new Exception("Data de demissão não pode ser anterior à data de admissão.");
+
+            entity.Ativo = !entity.DataDemissao.HasValue || entity.DataDemissao.Value.Date >= DateTime.UtcNow.Date;
 
             if (novaEscala != null)
                 entity.CargaHorariaSemanal = (int)novaEscala.CargaHorariaSemanal;

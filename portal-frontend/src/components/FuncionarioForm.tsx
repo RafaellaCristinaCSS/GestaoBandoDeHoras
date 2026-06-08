@@ -18,11 +18,23 @@ interface FuncionarioFormProps {
   isLoading?: boolean
 }
 
+const toInputDate = (value?: string) => {
+  if (!value) return ''
+  return value.length >= 10 ? value.slice(0, 10) : value
+}
+
 const funcionarioSchema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório'),
   cargo: z.string().min(1, 'Cargo é obrigatório'),
   escalaId: z.coerce.number().min(1, 'Escala é obrigatória'),
-  ativo: z.boolean(),
+  dataAdmissao: z.string().min(1, 'Data de admissão é obrigatória'),
+  dataDemissao: z.string().optional(),
+}).refine((data) => {
+  if (!data.dataDemissao) return true
+  return new Date(data.dataDemissao) >= new Date(data.dataAdmissao)
+}, {
+  message: 'Data de demissão não pode ser anterior à admissão',
+  path: ['dataDemissao'],
 })
 
 export type FuncionarioFormData = z.infer<typeof funcionarioSchema>
@@ -39,13 +51,15 @@ export function FuncionarioForm({ onSubmit, initialData, isLoading }: Funcionari
         nome: initialData.nome,
         cargo: initialData.cargo,
         escalaId: initialData.escalaId ?? 0,
-        ativo: initialData.ativo,
+        dataAdmissao: toInputDate(initialData.dataAdmissao),
+        dataDemissao: toInputDate(initialData.dataDemissao),
       }
     : {
         nome: '',
         cargo: '',
         escalaId: 0,
-        ativo: true,
+        dataAdmissao: toInputDate(new Date().toISOString()),
+        dataDemissao: '',
       }
 
   const { data: cargos, isLoading: isLoadingCargos } = useQuery({
@@ -234,11 +248,26 @@ export function FuncionarioForm({ onSubmit, initialData, isLoading }: Funcionari
         {errors.escalaId && <p className="mt-1 text-sm text-red-600">{errors.escalaId.message}</p>}
       </div>
 
-      <div>
-        <label className="flex items-center gap-2">
-          <input {...register('ativo')} type="checkbox" className="rounded border-slate-300" />
-          <span className="text-sm font-medium text-slate-700">Funcionário Ativo</span>
-        </label>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label className="block text-sm font-medium text-slate-700">Data de admissão *</label>
+          <input
+            {...register('dataAdmissao')}
+            type="date"
+            className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-blue-500 focus:ring-blue-500"
+          />
+          {errors.dataAdmissao && <p className="mt-1 text-sm text-red-600">{errors.dataAdmissao.message}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700">Data de demissão</label>
+          <input
+            {...register('dataDemissao')}
+            type="date"
+            className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-blue-500 focus:ring-blue-500"
+          />
+          {errors.dataDemissao && <p className="mt-1 text-sm text-red-600">{errors.dataDemissao.message}</p>}
+        </div>
       </div>
 
       <button
