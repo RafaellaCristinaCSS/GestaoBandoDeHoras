@@ -13,6 +13,7 @@ namespace Portal.Repositories
         Task<RegistroPonto?> GetByIdAsync(int id);
         Task<IEnumerable<RegistroPonto>> GetAllAsync();
         Task<IEnumerable<RegistroPonto>> GetFilteredAsync(int? funcionarioId, int? mes, int? ano, DateTime? dataInicio = null, DateTime? dataFim = null);
+        Task<IEnumerable<RegistroPonto>> GetPendentesRetroativoDoze36Async();
         Task AddAsync(RegistroPonto entity);
         Task UpdateAsync(RegistroPonto entity);
         Task DeleteAsync(RegistroPonto entity);
@@ -63,6 +64,20 @@ namespace Portal.Repositories
 
             return await query.OrderBy(x => x.Data).ToListAsync();
         }
+
+        public async Task<IEnumerable<RegistroPonto>> GetPendentesRetroativoDoze36Async()
+            => await WithIncludes(
+                    _context.Set<RegistroPonto>()
+                        .Where(r => !r.Excluded
+                            && r.ChangeDate == null
+                            && !r.Feriado
+                            && !r.AtestadoMedico
+                            && r.EscalaId != null
+                            && r.Escala != null
+                            && r.Escala.TipoEscala == TipoEscala.Doze36))
+                .OrderBy(r => r.FuncionarioId)
+                .ThenBy(r => r.Data)
+                .ToListAsync();
 
         public async Task<RegistroPonto?> GetByIdAsync(int id)
             => await WithIncludes(_context.Set<RegistroPonto>()).FirstOrDefaultAsync(x => x.Id == id);

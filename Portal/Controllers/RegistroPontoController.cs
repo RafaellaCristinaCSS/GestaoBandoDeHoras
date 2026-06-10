@@ -24,11 +24,12 @@ namespace Portal.Controllers
             [FromQuery] int? mes = null,
             [FromQuery] int? ano = null,
             [FromQuery] DateTime? dataInicio = null,
-            [FromQuery] DateTime? dataFim = null)
+            [FromQuery] DateTime? dataFim = null,
+            [FromQuery] bool forcarRetroativo = false)
         {
             try
             {
-                var result = await _service.GetAllAsync(funcionarioId, mes, ano, dataInicio, dataFim);
+                var result = await _service.GetAllAsync(funcionarioId, mes, ano, dataInicio, dataFim, forcarRetroativo);
                 return Ok(result);
             }
             catch (ArgumentException ex)
@@ -72,6 +73,18 @@ namespace Portal.Controllers
                 return NotFound($"Registro de Ponto não encontrado para exclusão.");
 
             return NoContent();
+        }
+
+        /// <summary>
+        /// Corrige retroativamente todos os registros de escala 12/36 que não foram editados
+        /// manualmente. Seguro: nunca altera registros com ChangeDate preenchido, feriados ou
+        /// atestados. Retorna a quantidade de registros corrigidos.
+        /// </summary>
+        [HttpPost("retroativo-doze36")]
+        public async Task<IActionResult> RetroativoDoze36()
+        {
+            var corrigidos = await _service.RetroativoDoze36Async();
+            return Ok(new { corrigidos });
         }
     }
 }

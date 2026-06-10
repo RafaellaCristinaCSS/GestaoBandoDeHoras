@@ -23,7 +23,7 @@ namespace Portal.Services
             _funcionarioEscalaRepository = funcionarioEscalaRepository;
         }
 
-        public async Task<IEnumerable<RegistroPontoReadDto>> GetAllAsync(int? funcionarioId = null, int? mes = null, int? ano = null, DateTime? dataInicio = null, DateTime? dataFim = null)
+        public async Task<IEnumerable<RegistroPontoReadDto>> GetAllAsync(int? funcionarioId = null, int? mes = null, int? ano = null, DateTime? dataInicio = null, DateTime? dataFim = null, bool forcarRetroativo = false)
         {
             if (dataInicio.HasValue != dataFim.HasValue)
                 throw new ArgumentException("Informe data inicial e data final para filtrar por período.");
@@ -99,12 +99,18 @@ namespace Portal.Services
                 }
             }
 
-            var list = SelecionarRegistrosUnicosPorDia((await _repository.GetFilteredAsync(funcionarioId, mes, ano, dataInicio, dataFim)).ToList());
+            var registrosFiltrados = (await _repository.GetFilteredAsync(funcionarioId, mes, ano, dataInicio, dataFim)).ToList();
 
             var atualizouRegistrosExistentes = false;
-            foreach (var registro in list)
+            foreach (var registro in registrosFiltrados)
             {
-                if (!RegistroPontoEscalaRules.DeveReaplicarEscala(registro))
+                var deveReaplicar = forcarRetroativo
+                    ? !registro.Feriado
+                        && !registro.AtestadoMedico
+                        && registro.ChangeDate == null
+                    : RegistroPontoEscalaRules.DeveReaplicarEscala(registro);
+
+                if (!deveReaplicar)
                     continue;
 
                 if ((!registro.EscalaId.HasValue || !registro.FuncionarioEscalaId.HasValue)
@@ -148,6 +154,7 @@ namespace Portal.Services
             if (atualizouRegistrosExistentes)
                 await _repository.SaveChangesAsync();
 
+            var list = SelecionarRegistrosUnicosPorDia(registrosFiltrados);
             return list.Select(RegistroPontoMapper.ToReadDto);
         }
 
@@ -290,6 +297,57 @@ namespace Portal.Services
             await _repository.UpdateAsync(entity);
             await _repository.SaveChangesAsync();
             return true;
+        }
+
+        public async Task<int> RetroativoDoze36Async()
+        {
+            var registros = (await _repository.GetPendentesRetroativoDoze36Async()).ToList();
+            var corrigidos = 0;
+
+            foreach (var registro in registros)
+            {
+                // Garante que o vínculo está carregado para usar a âncora correta de DataInicio
+                if (registro.FuncionarioEscalaVinculo == null && registro.FuncionarioEscalaId.HasValue)
+                {
+                    var vinc = await _funcionarioEscalaRepository.GetWithEscalaAtDateAsync(
+                        registro.FuncionarioId!.Value, registro.Data);
+                    if (vinc != null)
+                    {
+                        registro.FuncionarioEscalaVinculo = vinc;
+                        registro.Escala = vinc.Escala;
+                    }
+                }
+
+                var detalhe = RegistroPontoEscalaRules.ResolveDetalheParaRegistro(registro);
+                if (detalhe == null)
+                    continue;
+
+                var presencaAnterior = registro.Presenca;
+                var folgaAnterior = registro.Folga;
+                var entradaAnterior = registro.HoraEntrada;
+                var almocoInicioAnterior = registro.HoraAlmocoInicio;
+                var almocoFimAnterior = registro.HoraAlmocoFim;
+                var saidaAnterior = registro.HoraSaida;
+
+                RegistroPontoEscalaRules.ApplyEscala(registro, detalhe,
+                    sobrescreverHorarios: true, aplicarFolga: true);
+
+                if (registro.Presenca != presencaAnterior
+                    || registro.Folga != folgaAnterior
+                    || registro.HoraEntrada != entradaAnterior
+                    || registro.HoraAlmocoInicio != almocoInicioAnterior
+                    || registro.HoraAlmocoFim != almocoFimAnterior
+                    || registro.HoraSaida != saidaAnterior)
+                {
+                    await _repository.UpdateAsync(registro);
+                    corrigidos++;
+                }
+            }
+
+            if (corrigidos > 0)
+                await _repository.SaveChangesAsync();
+
+            return corrigidos;
         }
     }
 }
