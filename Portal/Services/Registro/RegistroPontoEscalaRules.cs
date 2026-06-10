@@ -9,6 +9,24 @@ namespace Portal.Services.Registro
         private static int GetEscalaDiaSemana(DateTime data)
             => ((int)data.DayOfWeek + 6) % 7;
 
+        private static bool TrabalhaNoDiaDoze36(DateTime data, bool trabalhaDiaPar, DateTime? dataInicioVinculo)
+        {
+            var diaPar = data.Day % 2 == 0;
+
+            if (!dataInicioVinculo.HasValue)
+                return trabalhaDiaPar ? diaPar : !diaPar;
+
+            var dataReferencia = dataInicioVinculo.Value.Date;
+            var diasDecorridos = Math.Abs((data.Date - dataReferencia).Days);
+            var trabalhaNaDataReferencia = trabalhaDiaPar
+                ? dataReferencia.Day % 2 == 0
+                : dataReferencia.Day % 2 != 0;
+
+            return diasDecorridos % 2 == 0
+                ? trabalhaNaDataReferencia
+                : !trabalhaNaDataReferencia;
+        }
+
         private static EscalaDetalhe NormalizeDoze36Detalhe(EscalaDetalhe detalhe)
         {
             if (detalhe.Folga)
@@ -59,8 +77,7 @@ namespace Portal.Services.Registro
                 if (!trabalhaDiaPar.HasValue)
                     return detalheTrabalho;
 
-                var diaPar = data.Day % 2 == 0;
-                var trabalhaHoje = trabalhaDiaPar.Value ? diaPar : !diaPar;
+                var trabalhaHoje = TrabalhaNoDiaDoze36(data, trabalhaDiaPar.Value, vinculo?.DataInicio);
                 if (!trabalhaHoje)
                 {
                     return new EscalaDetalhe
@@ -96,8 +113,7 @@ namespace Portal.Services.Registro
                 if (!trabalhaDiaPar.HasValue)
                     return detalheTrabalho;
 
-                var diaPar = registro.Data.Day % 2 == 0;
-                var trabalhaHoje = trabalhaDiaPar.Value ? diaPar : !diaPar;
+                var trabalhaHoje = TrabalhaNoDiaDoze36(registro.Data, trabalhaDiaPar.Value, registro.FuncionarioEscalaVinculo?.DataInicio);
                 if (!trabalhaHoje)
                 {
                     return new EscalaDetalhe
@@ -145,6 +161,10 @@ namespace Portal.Services.Registro
             if (aplicarFolga)
             {
                 registro.Folga = false;
+
+                // Mantem consistencia em registros auto-gerados sem marcacoes reais.
+                if (!RegistroPontoStatusRules.HasMarcacaoReal(registro))
+                    registro.Presenca = true;
             }
 
             registro.HoraEntrada = sobrescreverHorarios || string.IsNullOrWhiteSpace(registro.HoraEntrada)
@@ -163,7 +183,8 @@ namespace Portal.Services.Registro
 
         public static bool DeveReaplicarEscala(RegistroPonto registro)
             => !registro.Feriado
-                && registro.Presenca
+                && !registro.AtestadoMedico
+                && !RegistroPontoStatusRules.HasMarcacaoReal(registro)
                 && registro.ChangeDate == null;
     }
 }

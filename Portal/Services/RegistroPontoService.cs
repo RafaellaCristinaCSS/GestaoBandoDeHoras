@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Portal.DTOs;
 using Portal.Models;
@@ -11,6 +13,7 @@ namespace Portal.Services
 {
     public class RegistroPontoService : IRegistroPontoService
     {
+        private static readonly ConcurrentDictionary<int, SemaphoreSlim> _geracaoPorFuncionarioLocks = new();
         private readonly IRegistroPontoRepository _repository;
         private readonly IFuncionarioEscalaRepository _funcionarioEscalaRepository;
 
@@ -33,56 +36,70 @@ namespace Portal.Services
 
             if (funcionarioId.HasValue && periodo.HasValue)
             {
-                var registrosMes = (await _repository.GetFilteredAsync(funcionarioId, mes, ano, dataInicio, dataFim)).ToList();
-                var (periodoInicio, periodoFim) = periodo.Value;
+                var lockFuncionario = _geracaoPorFuncionarioLocks.GetOrAdd(funcionarioId.Value, _ => new SemaphoreSlim(1, 1));
+                await lockFuncionario.WaitAsync();
 
-                for (var dataAtual = periodoInicio; dataAtual <= periodoFim; dataAtual = dataAtual.AddDays(1))
+                try
                 {
-                    var data = new DateTime(
-                        dataAtual.Year,
-                        dataAtual.Month,
-                        dataAtual.Day,
-                        0,
-                        0,
-                        0,
-                        DateTimeKind.Utc);
-                    var existe = registrosMes.Any(r => r.Data.Date == data.Date);
-                    if (existe)
-                        continue;
+                    var registrosMes = (await _repository.GetFilteredAsync(funcionarioId, mes, ano, dataInicio, dataFim)).ToList();
+                    var datasExistentes = registrosMes
+                        .Select(r => r.Data.Date)
+                        .ToHashSet();
+                    var (periodoInicio, periodoFim) = periodo.Value;
 
-                    // Busca o vínculo histórico válido para a data — garante imutabilidade histórica
-                    var vincEscala = await _funcionarioEscalaRepository.GetWithEscalaAtDateAsync(funcionarioId.Value, data);
-                    var detalhe = RegistroPontoEscalaRules.ResolveDetalheParaData(data, vincEscala);
-
-                    var novo = new RegistroPonto
+                    for (var dataAtual = periodoInicio; dataAtual <= periodoFim; dataAtual = dataAtual.AddDays(1))
                     {
-                        FuncionarioId = funcionarioId.Value,
-                        Data = data,
-                        HoraEntrada = string.Empty,
-                        HoraAlmocoInicio = string.Empty,
-                        HoraAlmocoFim = string.Empty,
-                        HoraSaida = string.Empty,
-                        Presenca = true,
-                        Folga = false,
-                        Feriado = false,
-                        Observacao = string.Empty,
-                        // Referências históricas salvas no registro para cálculos futuros
-                        EscalaId = vincEscala?.EscalaId,
-                        FuncionarioEscalaId = vincEscala?.Id,
-                        CreatedByUserId = 0,
-                        StartDate = DateTime.UtcNow,
-                        Excluded = false
-                    };
+                        var data = new DateTime(
+                            dataAtual.Year,
+                            dataAtual.Month,
+                            dataAtual.Day,
+                            0,
+                            0,
+                            0,
+                            DateTimeKind.Utc);
 
-                    RegistroPontoEscalaRules.ApplyEscala(novo, detalhe, aplicarFolga: true);
+                        if (datasExistentes.Contains(data.Date))
+                            continue;
 
-                    await _repository.AddAsync(novo);
+                        // Busca o vínculo histórico válido para a data — garante imutabilidade histórica
+                        var vincEscala = await _funcionarioEscalaRepository.GetWithEscalaAtDateAsync(funcionarioId.Value, data);
+                        var detalhe = RegistroPontoEscalaRules.ResolveDetalheParaData(data, vincEscala);
+
+                        var novo = new RegistroPonto
+                        {
+                            FuncionarioId = funcionarioId.Value,
+                            Data = data,
+                            HoraEntrada = string.Empty,
+                            HoraAlmocoInicio = string.Empty,
+                            HoraAlmocoFim = string.Empty,
+                            HoraSaida = string.Empty,
+                            Presenca = true,
+                            Folga = false,
+                            Feriado = false,
+                            Observacao = string.Empty,
+                            // Referências históricas salvas no registro para cálculos futuros
+                            EscalaId = vincEscala?.EscalaId,
+                            FuncionarioEscalaId = vincEscala?.Id,
+                            CreatedByUserId = 0,
+                            StartDate = DateTime.UtcNow,
+                            Excluded = false
+                        };
+
+                        RegistroPontoEscalaRules.ApplyEscala(novo, detalhe, aplicarFolga: true);
+
+                        await _repository.AddAsync(novo);
+                        datasExistentes.Add(data.Date);
+                    }
+
+                    await _repository.SaveChangesAsync();
                 }
-
-                await _repository.SaveChangesAsync();
+                finally
+                {
+                    lockFuncionario.Release();
+                }
             }
 
-            var list = (await _repository.GetFilteredAsync(funcionarioId, mes, ano, dataInicio, dataFim)).ToList();
+            var list = SelecionarRegistrosUnicosPorDia((await _repository.GetFilteredAsync(funcionarioId, mes, ano, dataInicio, dataFim)).ToList());
 
             var atualizouRegistrosExistentes = false;
             foreach (var registro in list)
@@ -132,6 +149,20 @@ namespace Portal.Services
                 await _repository.SaveChangesAsync();
 
             return list.Select(RegistroPontoMapper.ToReadDto);
+        }
+
+        private static List<RegistroPonto> SelecionarRegistrosUnicosPorDia(IEnumerable<RegistroPonto> registros)
+        {
+            return registros
+                .GroupBy(r => new { r.FuncionarioId, Dia = r.Data.Date })
+                .Select(g => g
+                    .OrderByDescending(RegistroPontoStatusRules.HasMarcacaoReal)
+                    .ThenByDescending(r => r.ChangeDate.HasValue)
+                    .ThenByDescending(r => r.ChangeDate ?? r.StartDate)
+                    .ThenByDescending(r => r.Id)
+                    .First())
+                .OrderBy(r => r.Data)
+                .ToList();
         }
 
         public async Task<RegistroPontoReadDto?> GetByIdAsync(int id)
