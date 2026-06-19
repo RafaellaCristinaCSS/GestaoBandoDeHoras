@@ -67,11 +67,13 @@ export function RegistroPontoPage() {
 
     let preserveStatusFlags: Record<string, string | boolean> = {}
     if (registroAtual?.status === 'Feriado') {
-      preserveStatusFlags = { folga: false, feriado: true, atestadoMedico: false, presenca: false }
+      preserveStatusFlags = { folga: false, feriado: true, atestadoMedico: false, ferias: false, presenca: false }
     } else if (registroAtual?.status === 'Atestado Médico') {
-      preserveStatusFlags = { folga: false, feriado: false, atestadoMedico: true, presenca: false }
+      preserveStatusFlags = { folga: false, feriado: false, atestadoMedico: true, ferias: false, presenca: false }
     } else if (registroAtual?.status === 'Folga') {
-      preserveStatusFlags = { folga: true, feriado: false, atestadoMedico: false, presenca: false }
+      preserveStatusFlags = { folga: true, feriado: false, atestadoMedico: false, ferias: false, presenca: false }
+    } else if (registroAtual?.status === 'Férias') {
+      preserveStatusFlags = { folga: false, feriado: false, atestadoMedico: false, ferias: true, presenca: false }
     }
 
     updateMutation.mutate({

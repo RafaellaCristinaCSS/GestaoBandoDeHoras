@@ -4,7 +4,7 @@ namespace Portal.DTOs
 {
     public class FeriasCreateDto
     {
-        public int FeriasId { get; set; }
+        public int FuncionarioId { get; set; }
         public DateTime DataInicio { get; set; }
         public DateTime DataFim { get; set; }
         public string? Observacao { get; set; }
@@ -15,7 +15,7 @@ namespace Portal.DTOs
     public class FeriasUpdateDto
     {
         public int Id { get; set; }
-        public int? FeriasId { get; set; }
+        public int? FuncionarioId { get; set; }
         public DateTime? DataInicio { get; set; }
         public DateTime? DataFim { get; set; }
         public string? Observacao { get; set; }
@@ -26,7 +26,7 @@ namespace Portal.DTOs
     public class FeriasReadDto
     {
         public int Id { get; set; }
-        public int FeriasId { get; set; }
+        public int FuncionarioId { get; set; }
         public DateTime DataInicio { get; set; }
         public DateTime DataFim { get; set; }
         public string? Observacao { get; set; }

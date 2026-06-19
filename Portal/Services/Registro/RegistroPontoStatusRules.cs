@@ -16,6 +16,8 @@ namespace Portal.Services.Registro
                 return "Feriado";
             if (registro.AtestadoMedico)
                 return "Atestado Médico";
+            if (registro.Ferias)
+                return "Férias";
 
             if (registro.Folga)
                 return "Folga";

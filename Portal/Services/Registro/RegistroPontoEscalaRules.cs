@@ -184,6 +184,7 @@ namespace Portal.Services.Registro
         public static bool DeveReaplicarEscala(RegistroPonto registro)
             => !registro.Feriado
                 && !registro.AtestadoMedico
+                && !registro.Ferias
                 && !RegistroPontoStatusRules.HasMarcacaoReal(registro)
                 && registro.ChangeDate == null;
     }

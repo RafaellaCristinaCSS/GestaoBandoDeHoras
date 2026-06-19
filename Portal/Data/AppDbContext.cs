@@ -76,6 +76,12 @@ namespace Portal.Data
             modelBuilder.Entity<Ferias>()
                 .Property(e => e.Id)
                 .UseIdentityAlwaysColumn();
+
+            modelBuilder.Entity<Ferias>()
+                .HasOne(f => f.Funcionario)
+                .WithMany()
+                .HasForeignKey(f => f.FuncionarioId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

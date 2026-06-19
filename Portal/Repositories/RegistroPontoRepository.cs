@@ -72,6 +72,7 @@ namespace Portal.Repositories
                             && r.ChangeDate == null
                             && !r.Feriado
                             && !r.AtestadoMedico
+                            && !r.Ferias
                             && r.EscalaId != null
                             && r.Escala != null
                             && r.Escala.TipoEscala == TipoEscala.Doze36))

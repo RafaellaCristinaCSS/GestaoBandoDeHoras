@@ -37,18 +37,32 @@ namespace Portal.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] FeriasCreateDto dto)
         {
-            var created = await _service.CreateAsync(dto);
-            return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+            try
+            {
+                var created = await _service.CreateAsync(dto);
+                return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] FeriasUpdateDto dto)
         {
-            var updated = await _service.UpdateAsync(id, dto);
-            if (!updated)
-                return NotFound($"Férias não encontrado para atualização.");
+            try
+            {
+                var updated = await _service.UpdateAsync(id, dto);
+                if (!updated)
+                    return NotFound($"Férias não encontrado para atualização.");
 
-            return NoContent();
+                return NoContent();
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpDelete("{id}")]

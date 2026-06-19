@@ -19,6 +19,7 @@ namespace Portal.Models
         public bool Folga { get; set; }
         public bool Feriado { get; set; }
         public bool AtestadoMedico { get; set; }
+        public bool Ferias { get; set; }
         public string Observacao { get; set; }
 
         /// <summary>Referência histórica da escala usada neste registro. NÃO muda com trocas futuras.</summary>

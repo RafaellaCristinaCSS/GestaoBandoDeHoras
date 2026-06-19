@@ -76,6 +76,8 @@ namespace Portal.Services
                             Presenca = true,
                             Folga = false,
                             Feriado = false,
+                            AtestadoMedico = false,
+                            Ferias = false,
                             Observacao = string.Empty,
                             // Referências históricas salvas no registro para cálculos futuros
                             EscalaId = vincEscala?.EscalaId,
@@ -107,6 +109,7 @@ namespace Portal.Services
                 var deveReaplicar = forcarRetroativo
                     ? !registro.Feriado
                         && !registro.AtestadoMedico
+                        && !registro.Ferias
                         && registro.ChangeDate == null
                     : RegistroPontoEscalaRules.DeveReaplicarEscala(registro);
 
@@ -200,12 +203,13 @@ namespace Portal.Services
             entity.Folga = dto.Folga;
             entity.Feriado = dto.Feriado;
             entity.AtestadoMedico = dto.AtestadoMedico;
+            entity.Ferias = dto.Ferias;
             entity.Observacao = dto.Observacao ?? string.Empty;
             // Salva referências históricas imutáveis da escala vigente na data
             entity.EscalaId = vincEscala?.EscalaId;
             entity.FuncionarioEscalaId = vincEscala?.Id;
 
-            if (!entity.Feriado && !entity.AtestadoMedico)
+            if (!entity.Feriado && !entity.AtestadoMedico && !entity.Ferias)
             {
                 RegistroPontoEscalaRules.ApplyEscala(entity, escalaDoDia, aplicarFolga: true);
             }
@@ -232,6 +236,7 @@ namespace Portal.Services
             var dataEfetiva = dto.Data ?? entity.Data;
             var feriadoEfetivo = dto.Feriado ?? entity.Feriado;
             var atestadoEfetivo = dto.AtestadoMedico ?? entity.AtestadoMedico;
+            var feriasEfetivo = dto.Ferias ?? entity.Ferias;
 
             if (dto.FuncionarioId != null)
             {
@@ -247,7 +252,7 @@ namespace Portal.Services
                 entity.EscalaId = vincEscala?.EscalaId;
                 entity.FuncionarioEscalaId = vincEscala?.Id;
 
-                if (!feriadoEfetivo && !atestadoEfetivo)
+                if (!feriadoEfetivo && !atestadoEfetivo && !feriasEfetivo)
                 {
                     // Se campos de horário vierem vazios, reaplica a escala válida para a data/funcionário informados.
                     var detalhe = RegistroPontoEscalaRules.ResolveDetalheParaData(dataEfetiva, vincEscala);
@@ -268,8 +273,10 @@ namespace Portal.Services
                 entity.Feriado = dto.Feriado ?? entity.Feriado;
             if (dto.AtestadoMedico != null)
                 entity.AtestadoMedico = dto.AtestadoMedico ?? entity.AtestadoMedico;
+            if (dto.Ferias != null)
+                entity.Ferias = dto.Ferias ?? entity.Ferias;
 
-            if (entity.Presenca && !entity.Feriado && !entity.AtestadoMedico && funcionarioEfetivo.HasValue)
+            if (entity.Presenca && !entity.Feriado && !entity.AtestadoMedico && !entity.Ferias && funcionarioEfetivo.HasValue)
             {
                 var detalheAtual = RegistroPontoEscalaRules.ResolveDetalheParaRegistro(entity);
                 if (!RegistroPontoStatusRules.HasMarcacaoReal(entity) && detalheAtual != null && !detalheAtual.Folga)

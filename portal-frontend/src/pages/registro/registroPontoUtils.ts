@@ -6,6 +6,7 @@ export const STATUS_OPTIONS = [
   'Folga',
   'Feriado',
   'Atestado Médico',
+  'Férias',
 ] as const
 
 export const formatDateForInput = (date: Date) => {
@@ -73,17 +74,28 @@ export const getHorasTrabalhadas = (registro: RegistroPonto) => {
 
   return totalMinutos / 60
 }
-const excecoesHorasPlanejadas = ['folga', 'feriado', 'falta']
+const excecoesHorasPlanejadas = ['folga', 'feriado', 'falta', 'férias', 'ferias']
 
 export const getHorasPlanejadas = (registro: RegistroPonto) =>
   excecoesHorasPlanejadas.includes(registro.status.toLowerCase()) ? 0 : registro.horasPrevistas ?? null
 
 export const buildStatusPayload = (status: string): Record<string, string | boolean> => {
+  if (status === 'Férias') {
+    return {
+      folga: false,
+      feriado: false,
+      atestadoMedico: false,
+      ferias: true,
+      presenca: false,
+    }
+  }
+
   if (status === 'Feriado' || status === 'Atestado Médico') {
     return {
       folga: false,
       feriado: status === 'Feriado',
       atestadoMedico: status === 'Atestado Médico',
+      ferias: false,
       presenca: false,
     }
   }
@@ -93,6 +105,7 @@ export const buildStatusPayload = (status: string): Record<string, string | bool
       folga: false,
       feriado: false,
       atestadoMedico: false,
+      ferias: false,
       presenca: false,
       entrada: '',
       almocInicio: '',
@@ -106,6 +119,7 @@ export const buildStatusPayload = (status: string): Record<string, string | bool
       folga: true,
       feriado: false,
       atestadoMedico: false,
+      ferias: false,
       presenca: false,
     }
   }
@@ -114,6 +128,7 @@ export const buildStatusPayload = (status: string): Record<string, string | bool
     return {
       feriado: false,
       atestadoMedico: false,
+      ferias: false,
       presenca: false,
       entrada: '',
       almocInicio: '',
@@ -126,6 +141,7 @@ export const buildStatusPayload = (status: string): Record<string, string | bool
     folga: false,
     feriado: false,
     atestadoMedico: false,
+    ferias: false,
     presenca: true,
   }
 }

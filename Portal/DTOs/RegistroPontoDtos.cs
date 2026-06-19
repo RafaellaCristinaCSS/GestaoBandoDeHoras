@@ -14,6 +14,7 @@ namespace Portal.DTOs
         public bool Folga { get; set; } = false;
         public bool Feriado { get; set; } = false;
         public bool AtestadoMedico { get; set; } = false;
+        public bool Ferias { get; set; } = false;
         public string? Observacao { get; set; }
 
         public int CreatedByUserId { get; set; }
@@ -32,6 +33,7 @@ namespace Portal.DTOs
         public bool? Folga { get; set; }
         public bool? Feriado { get; set; }
         public bool? AtestadoMedico { get; set; }
+        public bool? Ferias { get; set; }
         public string? Observacao { get; set; }
 
         public int? UpdatedByUserId { get; set; }
@@ -58,6 +60,7 @@ namespace Portal.DTOs
         public bool Folga { get; set; }
         public bool Feriado { get; set; }
         public bool AtestadoMedico { get; set; }
+        public bool Ferias { get; set; }
         public string? Observacao { get; set; }
         public string Status { get; set; } = "Falta";
 

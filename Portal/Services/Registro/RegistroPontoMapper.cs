@@ -9,7 +9,7 @@ namespace Portal.Services.Registro
         {
             var detalhe = RegistroPontoEscalaRules.ResolveDetalheParaRegistro(registro);
 
-            decimal? horasPrevistas = registro.Folga ? 0 : detalhe?.HorasPrevistas;
+            decimal? horasPrevistas = registro.Folga || registro.Ferias ? 0 : detalhe?.HorasPrevistas;
             if (registro.Feriado || registro.AtestadoMedico)
             {
                 horasPrevistas = 0;
@@ -24,13 +24,14 @@ namespace Portal.Services.Registro
                 AlmocInicio = registro.HoraAlmocoInicio,
                 AlmocFim = registro.HoraAlmocoFim,
                 Saida = registro.HoraSaida,
-                EntradaPlanejada = registro.Folga ? null : detalhe?.HoraInicio,
-                SaidaPlanejada = registro.Folga ? null : detalhe?.HoraFim,
+                EntradaPlanejada = registro.Folga || registro.Ferias ? null : detalhe?.HoraInicio,
+                SaidaPlanejada = registro.Folga || registro.Ferias ? null : detalhe?.HoraFim,
                 HorasPrevistas = horasPrevistas,
                 Presenca = registro.Presenca,
                 Folga = registro.Folga,
                 Feriado = registro.Feriado,
                 AtestadoMedico = registro.AtestadoMedico,
+                Ferias = registro.Ferias,
                 Observacao = registro.Observacao,
                 Status = RegistroPontoStatusRules.BuildStatus(registro, detalhe),
                 EscalaId = registro.EscalaId,

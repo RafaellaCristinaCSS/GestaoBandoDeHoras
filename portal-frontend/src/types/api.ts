@@ -151,6 +151,7 @@ export interface RegistroPonto {
   folga: boolean
   feriado: boolean
   atestadoMedico: boolean
+  ferias: boolean
   observacao?: string
   status: string
   horasTrabalhadas?: number
@@ -169,6 +170,7 @@ export interface CreateRegistroPontoDTO {
   folga?: boolean
   feriado?: boolean
   atestadoMedico?: boolean
+  ferias?: boolean
   observacao?: string
 }
 
@@ -176,6 +178,7 @@ export interface CreateRegistroPontoDTO {
 export interface Ferias {
   id: number
   funcionarioId: number
+  funcionarioName?: string
   dataInicio: string
   dataFim: string
   observacao?: string

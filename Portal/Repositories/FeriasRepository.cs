@@ -22,10 +22,10 @@ namespace Portal.Repositories
         public FeriasRepository(AppDbContext context) => _context = context;
 
         public async Task<IEnumerable<Ferias>> GetAllAsync()
-            => await _context.Set<Ferias>().Include(x => x.Funcionario).ToListAsync();
+            => await _context.Set<Ferias>().Include(x => x.Funcionario).Where(x => !x.Excluded).ToListAsync();
 
 public async Task<Ferias?> GetByIdAsync(int id)
-    => await _context.Set<Ferias>().Include(x => x.Funcionario).FirstOrDefaultAsync(x => x.Id == id);
+    => await _context.Set<Ferias>().Include(x => x.Funcionario).FirstOrDefaultAsync(x => x.Id == id && !x.Excluded);
 
         public async Task AddAsync(Ferias entity)
         {
