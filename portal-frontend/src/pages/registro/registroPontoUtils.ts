@@ -79,6 +79,25 @@ const excecoesHorasPlanejadas = ['folga', 'feriado', 'falta', 'férias', 'ferias
 export const getHorasPlanejadas = (registro: RegistroPonto) =>
   excecoesHorasPlanejadas.includes(registro.status.toLowerCase()) ? 0 : registro.horasPrevistas ?? null
 
+export const getSaldoHoras = (registro: RegistroPonto): number | null => {
+  const horasTrabalhadas = getHorasTrabalhadas(registro)
+  const horasPlanejadas = getHorasPlanejadas(registro)
+
+  if (horasTrabalhadas == null || horasPlanejadas == null) return null
+
+  return horasTrabalhadas - horasPlanejadas
+}
+
+export const formatSaldoDoDia = (saldo: number | null) => {
+  if (saldo == null) return '-'
+  if (saldo === 0) return '0h'
+
+  const abs = Math.abs(saldo)
+  const hours = Number.isInteger(abs) ? `${abs}h` : `${abs.toFixed(1)}h`
+
+  return saldo > 0 ? `+${hours}` : `-${hours}`
+}
+
 export const buildStatusPayload = (status: string): Record<string, string | boolean> => {
   if (status === 'Férias') {
     return {
