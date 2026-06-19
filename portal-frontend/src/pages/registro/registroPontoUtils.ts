@@ -88,14 +88,24 @@ export const getSaldoHoras = (registro: RegistroPonto): number | null => {
   return horasTrabalhadas - horasPlanejadas
 }
 
+export const formatHorasMinutos = (hours: number, options?: { signed?: boolean }) => {
+  const totalMinutes = Math.round(Math.abs(hours) * 60)
+  const horas = Math.floor(totalMinutes / 60)
+  const minutos = totalMinutes % 60
+  const horasFormatadas = horas < 100 ? String(horas).padStart(2, '0') : String(horas)
+  const formatted = `${horasFormatadas}:${String(minutos).padStart(2, '0')}`
+
+  if (hours === 0) return options?.signed ? '+00:00' : '00:00'
+  if (options?.signed) return hours > 0 ? `+${formatted}` : `-${formatted}`
+
+  return hours < 0 ? `-${formatted}` : formatted
+}
+
 export const formatSaldoDoDia = (saldo: number | null) => {
   if (saldo == null) return '-'
-  if (saldo === 0) return '0h'
+  if (saldo === 0) return '+00:00'
 
-  const abs = Math.abs(saldo)
-  const hours = Number.isInteger(abs) ? `${abs}h` : `${abs.toFixed(1)}h`
-
-  return saldo > 0 ? `+${hours}` : `-${hours}`
+  return formatHorasMinutos(saldo, { signed: true })
 }
 
 export const buildStatusPayload = (status: string): Record<string, string | boolean> => {

@@ -10,7 +10,10 @@ import { EmptyState } from '@/components/EmptyState'
 import { useToast } from '@/contexts/ToastContext'
 import { Funcionario, RegistroPonto } from '@/types/api'
 import {
+  formatHorasMinutos,
   formatSaldoDoDia,
+  getHorasPlanejadas,
+  getHorasTrabalhadas,
   getSaldoHoras,
   parseLocalDate as parseLocalDateFromUtils,
 } from '@/pages/registro/registroPontoUtils'
@@ -33,60 +36,32 @@ const parseLocalDate = parseLocalDateFromUtils
 
 const formatSignedBalanceShort = (saldo: number) => formatSaldoDoDia(saldo)
 
-const toInputDate = (value?: string) => {
-  if (!value) return ''
-  return value.length >= 10 ? value.slice(0, 10) : value
-}
-
-const toMinutes = (time?: string) => {
-  if (!time || time === '00:00') return null
-
-  const [hours, minutes] = time.split(':').map(Number)
-  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null
-
-  return hours * 60 + minutes
-}
-
-const normalizeRangeMinutes = (start: number, end: number) => {
-  if (end <= start) {
-    return end + 24 * 60
-  }
-
-  return end
-}
-
-const formatHours = (hours: number) => {
-  const totalMinutes = Math.round(Math.abs(hours) * 60)
-  const formatted = `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`
-  return hours < 0 ? `-${formatted}` : formatted
-}
+const formatHours = (hours: number) => formatHorasMinutos(hours)
 
 const toExcelDuration = (hours: number) => {
   return Number((hours / 24).toFixed(10))
 }
 
-const getWorkedHours = (registro: RegistroPonto) => {
-  // Coleta todos os timestamps disponíveis em ordem e emparelha de 2 em 2.
-  // Assim, registros incompletos (ex.: entrada + almocInicio sem saída) ainda
-  // contribuem com as horas que estão registradas — essencial para folgas com
-  // marcação parcial que devem contar como hora extra.
-  const marcacoes = [
-    toMinutes(registro.entrada),
-    toMinutes(registro.almocInicio),
-    toMinutes(registro.almocFim),
-    toMinutes(registro.saida),
-  ].filter((value): value is number => value != null)
-
-  if (marcacoes.length < 2) return 0
-  let totalMinutos = 0
-  for (let i = 0; i + 1 < marcacoes.length; i += 2) {
-    const inicio = marcacoes[i]
-    const fim = normalizeRangeMinutes(inicio, marcacoes[i + 1])
-    totalMinutos += fim - inicio
-  }
-
-  return totalMinutos / 60
+const toInputDate = (value?: string) => {
+  if (!value) return ''
+  return value.length >= 10 ? value.slice(0, 10) : value
 }
+
+const computeEmployeeTotals = (registros: RegistroPonto[]) =>
+  registros.reduce(
+    (acc, registro) => {
+      const horasPlanejadas = getHorasPlanejadas(registro)
+      const horasTrabalhadas = getHorasTrabalhadas(registro)
+      const saldo = getSaldoHoras(registro)
+
+      if (horasPlanejadas != null) acc.horasPlanejadas += horasPlanejadas
+      if (horasTrabalhadas != null) acc.horasCumpridas += horasTrabalhadas
+      if (saldo != null) acc.saldoHoras += saldo
+
+      return acc
+    },
+    { horasPlanejadas: 0, horasCumpridas: 0, saldoHoras: 0 }
+  )
 
 type EmployeeReport = {
   funcionario: Funcionario
@@ -132,16 +107,76 @@ type FeriasReportGroup = {
   periodos: FeriasPeriodItem[]
 }
 
-type MedicalCertificateItem = {
+type OccurrenceDetailItem = {
   data: string
   observacao: string
 }
 
-type MedicalCertificateGroup = {
+type EmployeeOccurrenceGroup = {
   funcionario: string
-  itens: MedicalCertificateItem[]
+  itens: OccurrenceDetailItem[]
   total: number
 }
+
+const EXCEL_LAST_COLUMN_INDEX = 5
+
+const REPORT_LABELS = {
+  sections: {
+    ferias: 'Férias',
+    faltas: 'Faltas',
+    atestadosMedicos: 'Atestados Médicos',
+    fechamentoConsolidado: 'Fechamento consolidado',
+    detalhamentoHoraExtraAtraso: 'Detalhamento Hora Extra / Atraso',
+  },
+  columns: {
+    funcionario: 'Funcionário',
+    dia: 'Dia',
+    data: 'Data',
+    observacao: 'Observação',
+    quantidade: 'Quantidade',
+    qtdFaltas: 'Qtd. de faltas',
+    qtdAtestados: 'Qtd. de atestados',
+    acoes: 'Ações',
+    horasPrevistas: 'Horas previstas',
+    horasTrabalhadas: 'Horas trabalhadas',
+    resultado: 'Resultado',
+    saldo: 'Saldo',
+    periodoFerias: 'Período de férias',
+    entrada: 'Entrada',
+    saidaAlmoco: 'Saída Almoço',
+    voltaAlmoco: 'Volta Almoço',
+    saida: 'Saída',
+    saldoDoDia: 'Saldo do Dia',
+  },
+} as const
+
+const groupOccurrencesByEmployee = (
+  items: Array<{ funcionario: string; data: string; observacao: string }>
+): EmployeeOccurrenceGroup[] =>
+  Object.values(
+    items.reduce<Record<string, EmployeeOccurrenceGroup>>((acc, item) => {
+      if (!acc[item.funcionario]) {
+        acc[item.funcionario] = {
+          funcionario: item.funcionario,
+          itens: [],
+          total: 0,
+        }
+      }
+
+      acc[item.funcionario].itens.push({
+        data: item.data,
+        observacao: item.observacao,
+      })
+
+      return acc
+    }, {})
+  )
+    .map((group) => ({
+      ...group,
+      itens: [...group.itens].sort((a, b) => a.data.localeCompare(b.data, 'pt-BR')),
+      total: group.itens.length,
+    }))
+    .sort((a, b) => a.funcionario.localeCompare(b.funcionario, 'pt-BR'))
 
 const formatTimeDisplay = (time?: string) => {
   if (!time || time === '00:00') return '-'
@@ -196,10 +231,96 @@ function ExpandEyeButton({
         e.stopPropagation()
         onClick()
       }}
-      className="mr-2 inline-flex text-blue-600 hover:text-blue-800"
+      className="inline-flex text-blue-600 hover:text-blue-800"
     >
       <Eye size={18} />
     </button>
+  )
+}
+
+function EmployeeOccurrenceTable({
+  groups,
+  quantityLabel,
+  dateColumnLabel,
+  expandedEmployees,
+  onToggle,
+  rowHoverClass,
+  detailRowClass,
+}: {
+  groups: EmployeeOccurrenceGroup[]
+  quantityLabel: string
+  dateColumnLabel: string
+  expandedEmployees: Record<string, boolean>
+  onToggle: (funcionario: string) => void
+  rowHoverClass: string
+  detailRowClass: string
+}) {
+  return (
+    <table className="w-full text-sm">
+      <thead className="border-b bg-slate-50">
+        <tr>
+          <th className="px-6 py-3 text-left font-semibold text-slate-900">
+            {REPORT_LABELS.columns.funcionario}
+          </th>
+          <th className="px-6 py-3 text-left font-semibold text-slate-900">{quantityLabel}</th>
+          <th className="px-6 py-3 text-center font-semibold text-slate-900">
+            {REPORT_LABELS.columns.acoes}
+          </th>
+        </tr>
+      </thead>
+      <tbody className="divide-y">
+        {groups.map((group) => {
+          const isExpanded = Boolean(expandedEmployees[group.funcionario])
+
+          return (
+            <Fragment key={group.funcionario}>
+              <tr className={rowHoverClass}>
+                <td className="px-6 py-4 text-slate-700">{group.funcionario}</td>
+                <td className="px-6 py-4 text-slate-700">{group.total}</td>
+                <td className="px-6 py-4 text-center">
+                  <ExpandEyeButton
+                    expanded={isExpanded}
+                    visible
+                    onClick={() => onToggle(group.funcionario)}
+                  />
+                </td>
+              </tr>
+
+              {isExpanded && (
+                <tr className={detailRowClass}>
+                  <td colSpan={3} className="px-6 py-4">
+                    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+                      <table className="w-full text-sm">
+                        <thead className="border-b bg-slate-50">
+                          <tr>
+                            <th className="px-4 py-2 text-left font-semibold text-slate-900">
+                              {dateColumnLabel}
+                            </th>
+                            <th className="px-4 py-2 text-left font-semibold text-slate-900">
+                              {REPORT_LABELS.columns.observacao}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {group.itens.map((item, index) => (
+                            <tr key={`${group.funcionario}-${item.data}-${index}`}>
+                              <td className="px-4 py-2 text-slate-700">
+                                {parseLocalDate(item.data).toLocaleDateString('pt-BR')}
+                              </td>
+                              <td className="px-4 py-2 text-slate-700">{item.observacao}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </Fragment>
+          )
+        })}
+      </tbody>
+    </table>
   )
 }
 
@@ -216,6 +337,7 @@ export function RelatoriosPage() {
   })
   const [absencesPage, setAbsencesPage] = useState(1)
   const [medicalCertificatesPage, setMedicalCertificatesPage] = useState(1)
+  const [expandedAbsenceEmployees, setExpandedAbsenceEmployees] = useState<Record<string, boolean>>({})
   const [expandedMedicalEmployees, setExpandedMedicalEmployees] = useState<Record<string, boolean>>({})
   const [expandedConsolidatedEmployees, setExpandedConsolidatedEmployees] = useState<Record<string, boolean>>({})
   const pageSize = 10
@@ -268,21 +390,7 @@ export function RelatoriosPage() {
           // Faltas: não considerar feriado/atestado sem registro como falta
           const faltas = registrosNoVinculo.filter((registro) => registro.status === 'Falta' && !registro.feriado && !registro.atestadoMedico)
 
-          const totals = registrosNoVinculo.reduce(
-            (acc, registro) => {
-              // Jornada prevista de folga, feriado e atestado é sempre 0
-              const horasPlanejadasDoDia = (registro.folga || registro.feriado || registro.atestadoMedico) ? 0 : (registro.horasPrevistas ?? 0)
-              // Em folga, feriado e atestado, todas as horas registradas são extras
-              const horasCumpridasDoDia = getWorkedHours(registro)
-              acc.horasPlanejadas += horasPlanejadasDoDia
-              acc.horasCumpridas += horasCumpridasDoDia
-              return acc
-            },
-            { horasPlanejadas: 0, horasCumpridas: 0 }
-          )
-
-          // Saldo: em feriado/atestado, nunca gera atraso; se houver registro, é extra
-          // O saldo global já reflete isso pois horasPlanejadas de feriado/atestado é 0
+          const totals = computeEmployeeTotals(registrosNoVinculo)
 
           return {
             funcionario,
@@ -290,7 +398,7 @@ export function RelatoriosPage() {
             faltas,
             horasPlanejadas: totals.horasPlanejadas,
             horasCumpridas: totals.horasCumpridas,
-            saldoHoras: totals.horasCumpridas - totals.horasPlanejadas,
+            saldoHoras: totals.saldoHoras,
           }
         })
       )
@@ -319,40 +427,23 @@ export function RelatoriosPage() {
         }))
     ) ?? []
 
-  const medicalCertificatesByEmployee: MedicalCertificateGroup[] = Object.values(
-    medicalCertificates.reduce<Record<string, { funcionario: string; itens: MedicalCertificateItem[] }>>((acc, item) => {
-      if (!acc[item.funcionario]) {
-        acc[item.funcionario] = {
-          funcionario: item.funcionario,
-          itens: [],
-        }
-      }
-
-      acc[item.funcionario].itens.push({
-        data: item.data,
-        observacao: item.observacao,
-      })
-
-      return acc
-    }, {})
-  )
-    .map((group) => ({
-      ...group,
-      itens: [...group.itens].sort((a, b) => a.data.localeCompare(b.data, 'pt-BR')),
-      total: group.itens.length,
-    }))
-    .sort((a, b) => a.funcionario.localeCompare(b.funcionario, 'pt-BR'))
+  const absencesByEmployee = groupOccurrencesByEmployee(absences)
+  const medicalCertificatesByEmployee = groupOccurrencesByEmployee(medicalCertificates)
 
   const consolidated =
-    reportData?.filter((item) => item.saldoHoras !== 0).map<ConsolidatedBalanceItem>((item) => ({
-      funcionario: item.funcionario.nome,
-      horasPlanejadas: item.horasPlanejadas,
-      horasCumpridas: item.horasCumpridas,
-      saldoHoras: item.saldoHoras,
-      saldoAbsoluto: Math.abs(item.saldoHoras),
-      tipo: item.saldoHoras > 0 ? 'Hora Extra' : 'Atraso',
-      dias: getDaysWithOccurrence(item.registros),
-    })) ?? []
+    reportData?.filter((item) => item.saldoHoras !== 0).map<ConsolidatedBalanceItem>((item) => {
+      const dias = getDaysWithOccurrence(item.registros)
+
+      return {
+        funcionario: item.funcionario.nome,
+        horasPlanejadas: item.horasPlanejadas,
+        horasCumpridas: item.horasCumpridas,
+        saldoHoras: item.saldoHoras,
+        saldoAbsoluto: Math.abs(item.saldoHoras),
+        tipo: item.saldoHoras > 0 ? 'Hora Extra' : 'Atraso',
+        dias,
+      }
+    }) ?? []
 
   const feriasInPeriod: FeriasReportGroup[] = (() => {
     if (!feriasList || !startDate || !endDate || isDateRangeInvalid) return []
@@ -389,14 +480,20 @@ export function RelatoriosPage() {
 
   const monthly = reportData ?? []
 
-  const absencesTotalPages = Math.max(1, Math.ceil(absences.length / pageSize))
+  const absencesTotalPages = Math.max(1, Math.ceil(absencesByEmployee.length / pageSize))
   const medicalCertificatesTotalPages = Math.max(1, Math.ceil(medicalCertificatesByEmployee.length / pageSize))
 
   const safeAbsencesPage = Math.min(absencesPage, absencesTotalPages)
   const safeMedicalCertificatesPage = Math.min(medicalCertificatesPage, medicalCertificatesTotalPages)
 
-  const paginatedAbsences = absences.slice((safeAbsencesPage - 1) * pageSize, safeAbsencesPage * pageSize)
-  const paginatedMedicalCertificatesByEmployee = medicalCertificatesByEmployee.slice((safeMedicalCertificatesPage - 1) * pageSize, safeMedicalCertificatesPage * pageSize)
+  const paginatedAbsencesByEmployee = absencesByEmployee.slice(
+    (safeAbsencesPage - 1) * pageSize,
+    safeAbsencesPage * pageSize
+  )
+  const paginatedMedicalCertificatesByEmployee = medicalCertificatesByEmployee.slice(
+    (safeMedicalCertificatesPage - 1) * pageSize,
+    safeMedicalCertificatesPage * pageSize
+  )
 
   const totalHorasExtras = consolidated
     .filter((item) => item.saldoHoras > 0)
@@ -494,7 +591,7 @@ export function RelatoriosPage() {
         })
         rowIndex++
       }
-      const appendMergedTitle = (text: string, style: any, lastColumnIndex = 5) => {
+      const appendMergedTitle = (text: string, style: any, lastColumnIndex = EXCEL_LAST_COLUMN_INDEX) => {
         appendRow([{ value: text }], [style])
 
         worksheet['!merges'] = worksheet['!merges'] || []
@@ -524,264 +621,219 @@ export function RelatoriosPage() {
 
       // Opcional: aumenta a altura da segunda linha também
       worksheet['!rows'][1] = { hpt: 25 }
-      // Faltas
-      if (exportSections.faltas && absences.length > 0) {
-        appendMergedTitle('Faltas', headerStyle, 4)
+      const sixCellRowStyle = Array.from({ length: EXCEL_LAST_COLUMN_INDEX + 1 }, () => cellStyle)
+      const sixHeaderSecondaryStyle = Array.from({ length: EXCEL_LAST_COLUMN_INDEX + 1 }, () => headerSecondaryStyle)
+      const sixHeaderTertiaryStyle = Array.from({ length: EXCEL_LAST_COLUMN_INDEX + 1 }, () => headerTertiaryStyle)
 
-        worksheet['!merges'] = worksheet['!merges'] || []
-
-        appendRow([
-          { value: 'Funcionário' },
-          { value: 'Dia' },
-          { value: 'Observação' },
-          { value: '' },
-          { value: '' },
-        ], [
-          headerSecondaryStyle,
-          headerSecondaryStyle,
-          headerSecondaryStyle,
-          headerSecondaryStyle,
-          headerSecondaryStyle,
-        ])
-
-        const headerRow = rowIndex - 1
-
-        worksheet['!merges']!.push({
-          s: { r: headerRow, c: 2 }, // C
-          e: { r: headerRow, c: 4 }, // E
-        })
-
-        absences.forEach(item => {
-          appendRow([
-            { value: item.funcionario },
-            { value: parseLocalDate(item.data).toLocaleDateString('pt-BR') },
-            { value: item.observacao },
-            { value: '' },
-            { value: '' },
-          ], [
-            cellStyle,
-            cellStyle,
-            cellStyle,
-            cellStyle,
-            cellStyle,
-          ])
-
-          const absenceRow = rowIndex - 1
-
-          worksheet['!merges']!.push({
-            s: { r: absenceRow, c: 2 }, // C
-            e: { r: absenceRow, c: 4 }, // E
-          })
-        })
-      }
-      // Atestados médicos
-      if (exportSections.atestadosMedicos && medicalCertificatesByEmployee.length > 0) {
-        appendMergedTitle('Atestados médicos', headerStyle)
-
-        worksheet['!merges'] = worksheet['!merges'] || []
-
-        medicalCertificatesByEmployee.forEach(group => {
-
-          // Funcionário + quantidade
-          appendRow([
-            { value: group.funcionario },
-            { value: '' },
-            { value: '' },
-            { value: '' },
-            { value: "Quantidade:" + group.total }
-          ], [
-            headerSecondaryStyle,
-            headerSecondaryStyle,
-            headerSecondaryStyle,
-            headerSecondaryStyle,
-            headerSecondaryStyle
-          ])
+      const appendEmployeeOccurrenceSection = (
+        groups: EmployeeOccurrenceGroup[],
+        dateColumnLabel: string
+      ) => {
+        groups.forEach((group) => {
+          appendRow(
+            [
+              { value: group.funcionario },
+              { value: '' },
+              { value: '' },
+              { value: '' },
+              { value: '' },
+              { value: `${REPORT_LABELS.columns.quantidade}: ${group.total}` },
+            ],
+            sixHeaderSecondaryStyle
+          )
 
           const funcionarioRow = rowIndex - 1
 
+          worksheet['!merges'] = worksheet['!merges'] || []
           worksheet['!merges']!.push({
             s: { r: funcionarioRow, c: 0 },
-            e: { r: funcionarioRow, c: 3 }
+            e: { r: funcionarioRow, c: 3 },
           })
 
-          // Cabeçalho dos detalhes
-          appendRow([
-            { value: 'Data' },
-            { value: 'Observação' },
-            { value: '' },
-            { value: '' },
-            { value: '' }
-          ], [
-            headerTertiaryStyle,
-            headerTertiaryStyle,
-            headerTertiaryStyle,
-            headerTertiaryStyle,
-            headerTertiaryStyle
-          ])
+          appendRow(
+            [
+              { value: dateColumnLabel },
+              { value: REPORT_LABELS.columns.observacao },
+              { value: '' },
+              { value: '' },
+              { value: '' },
+              { value: '' },
+            ],
+            sixHeaderTertiaryStyle
+          )
 
           const cabecalhoRow = rowIndex - 1
 
           worksheet['!merges']!.push({
             s: { r: cabecalhoRow, c: 1 },
-            e: { r: cabecalhoRow, c: 4 }
+            e: { r: cabecalhoRow, c: EXCEL_LAST_COLUMN_INDEX },
           })
 
-          // Datas e observações
-          const itens = group.itens ?? []
-
-          itens.forEach(item => {
-
-            appendRow([
-              { value: parseLocalDate(item.data).toLocaleDateString('pt-BR') },
-              { value: item.observacao || '' },
-              { value: '' },
-              { value: '' },
-              { value: '' }
-            ], [
-              cellStyle,
-              cellStyle,
-              cellStyle,
-              cellStyle,
-              cellStyle
-            ])
+          group.itens.forEach((item) => {
+            appendRow(
+              [
+                { value: parseLocalDate(item.data).toLocaleDateString('pt-BR') },
+                { value: item.observacao || '' },
+                { value: '' },
+                { value: '' },
+                { value: '' },
+                { value: '' },
+              ],
+              sixCellRowStyle
+            )
 
             const detalheRow = rowIndex - 1
 
             worksheet['!merges']!.push({
               s: { r: detalheRow, c: 1 },
-              e: { r: detalheRow, c: 4 }
+              e: { r: detalheRow, c: EXCEL_LAST_COLUMN_INDEX },
             })
           })
         })
       }
-      // Fechamento consolidado
-      appendMergedTitle('Fechamento consolidado', headerStyle)
-      appendRow([
-        { value: 'Funcionário' },
-        { value: 'Horas Previstas' },
-        { value: 'Horas Trabalhadas' },
-        { value: 'Resultado' },
-        { value: 'Saldo Absoluto' },
-      ], [headerSecondaryStyle, headerSecondaryStyle, headerSecondaryStyle, headerSecondaryStyle, headerSecondaryStyle])
-      consolidated.forEach(item => {
-        const saldoStyle = item.tipo === 'Atraso' ? atrasoStyle : item.tipo === 'Hora Extra' ? extraStyle : cellStyle
-        appendRow([
-          { value: item.funcionario },
-          { value: toExcelDuration(item.horasPlanejadas), type: 'n', format: '[hh]:mm' },
-          { value: toExcelDuration(item.horasCumpridas), type: 'n', format: '[hh]:mm' },
-          { value: item.tipo },
-          { value: toExcelDuration(item.saldoAbsoluto), type: 'n', format: '[hh]:mm' },
-          { value: '' },
-        ], [cellStyle, cellStyle, cellStyle, cellStyle, saldoStyle, cellStyle])
-      })
 
+      // Férias
       if (feriasInPeriod.length > 0) {
-        appendMergedTitle('Férias', headerStyle)
+        appendMergedTitle(REPORT_LABELS.sections.ferias, headerStyle)
 
-        appendRow([
-          { value: 'Funcionário' },
-          { value: 'Período de férias' },
-          { value: '' },
-          { value: '' },
-          { value: '' },
-          { value: '' },
-        ], [
-          headerSecondaryStyle,
-          headerSecondaryStyle,
-          headerSecondaryStyle,
-          headerSecondaryStyle,
-          headerSecondaryStyle,
-          headerSecondaryStyle,
-        ])
+        appendRow(
+          [
+            { value: REPORT_LABELS.columns.funcionario },
+            { value: REPORT_LABELS.columns.periodoFerias },
+            { value: '' },
+            { value: '' },
+            { value: '' },
+            { value: '' },
+          ],
+          sixHeaderSecondaryStyle
+        )
 
         const feriasHeaderRow = rowIndex - 1
 
         worksheet['!merges'] = worksheet['!merges'] || []
         worksheet['!merges']!.push({
           s: { r: feriasHeaderRow, c: 1 },
-          e: { r: feriasHeaderRow, c: 5 },
+          e: { r: feriasHeaderRow, c: EXCEL_LAST_COLUMN_INDEX },
         })
 
         feriasInPeriod.forEach((group) => {
           group.periodos.forEach((periodo) => {
-            appendRow([
-              { value: group.funcionario },
-              { value: formatFeriasPeriod(periodo.dataInicio, periodo.dataFim) },
-              { value: '' },
-              { value: '' },
-              { value: '' },
-              { value: '' },
-            ], [cellStyle, cellStyle, cellStyle, cellStyle, cellStyle, cellStyle])
+            appendRow(
+              [
+                { value: group.funcionario },
+                { value: formatFeriasPeriod(periodo.dataInicio, periodo.dataFim) },
+                { value: '' },
+                { value: '' },
+                { value: '' },
+                { value: '' },
+              ],
+              sixCellRowStyle
+            )
 
             const feriasRow = rowIndex - 1
 
             worksheet['!merges']!.push({
               s: { r: feriasRow, c: 1 },
-              e: { r: feriasRow, c: 5 },
+              e: { r: feriasRow, c: EXCEL_LAST_COLUMN_INDEX },
             })
           })
         })
       }
 
+      // Faltas
+      if (exportSections.faltas && absencesByEmployee.length > 0) {
+        appendMergedTitle(REPORT_LABELS.sections.faltas, headerStyle)
+        appendEmployeeOccurrenceSection(absencesByEmployee, REPORT_LABELS.columns.dia)
+      }
+
+      // Atestados médicos
+      if (exportSections.atestadosMedicos && medicalCertificatesByEmployee.length > 0) {
+        appendMergedTitle(REPORT_LABELS.sections.atestadosMedicos, headerStyle)
+        appendEmployeeOccurrenceSection(medicalCertificatesByEmployee, REPORT_LABELS.columns.data)
+      }
+
+      // Fechamento consolidado
+      appendMergedTitle(REPORT_LABELS.sections.fechamentoConsolidado, headerStyle)
+      appendRow(
+        [
+          { value: REPORT_LABELS.columns.funcionario },
+          { value: REPORT_LABELS.columns.horasPrevistas },
+          { value: REPORT_LABELS.columns.horasTrabalhadas },
+          { value: REPORT_LABELS.columns.resultado },
+          { value: REPORT_LABELS.columns.saldo },
+          { value: '' },
+        ],
+        sixHeaderSecondaryStyle
+      )
+      consolidated.forEach((item) => {
+        const saldoStyle = item.tipo === 'Atraso' ? atrasoStyle : item.tipo === 'Hora Extra' ? extraStyle : cellStyle
+        appendRow(
+          [
+            { value: item.funcionario },
+            { value: toExcelDuration(item.horasPlanejadas), type: 'n', format: '[hh]:mm' },
+            { value: toExcelDuration(item.horasCumpridas), type: 'n', format: '[hh]:mm' },
+            { value: item.tipo },
+            { value: formatSignedBalanceShort(item.saldoHoras) },
+            { value: '' },
+          ],
+          [cellStyle, cellStyle, cellStyle, cellStyle, saldoStyle, cellStyle]
+        )
+      })
+
       if (exportSections.horaExtraAtraso) {
         const consolidatedComDetalhes = consolidated.filter((item) => item.dias.length > 0)
 
         if (consolidatedComDetalhes.length > 0) {
-          appendMergedTitle('Detalhamento Hora Extra / Atraso', headerStyle)
+          appendMergedTitle(REPORT_LABELS.sections.detalhamentoHoraExtraAtraso, headerStyle)
 
           consolidatedComDetalhes.forEach((item) => {
-            appendRow([
-              { value: `${item.funcionario} : ${formatSignedBalanceShort(item.saldoHoras)}` },
-              { value: '' },
-              { value: '' },
-              { value: '' },
-              { value: '' },
-              { value: '' },
-            ], [
-              headerSecondaryStyle,
-              headerSecondaryStyle,
-              headerSecondaryStyle,
-              headerSecondaryStyle,
-              headerSecondaryStyle,
-              headerSecondaryStyle,
-            ])
+            appendRow(
+              [
+                { value: `${item.funcionario} : ${formatSignedBalanceShort(item.saldoHoras)}` },
+                { value: '' },
+                { value: '' },
+                { value: '' },
+                { value: '' },
+                { value: '' },
+              ],
+              sixHeaderSecondaryStyle
+            )
 
             const funcionarioRow = rowIndex - 1
 
             worksheet['!merges'] = worksheet['!merges'] || []
             worksheet['!merges']!.push({
               s: { r: funcionarioRow, c: 0 },
-              e: { r: funcionarioRow, c: 5 },
+              e: { r: funcionarioRow, c: EXCEL_LAST_COLUMN_INDEX },
             })
 
-            appendRow([
-              { value: 'Data' },
-              { value: 'Entrada' },
-              { value: 'Saída Almoço' },
-              { value: 'Volta Almoço' },
-              { value: 'Saída' },
-              { value: 'Saldo do Dia' },
-            ], [
-              headerTertiaryStyle,
-              headerTertiaryStyle,
-              headerTertiaryStyle,
-              headerTertiaryStyle,
-              headerTertiaryStyle,
-              headerTertiaryStyle,
-            ])
+            appendRow(
+              [
+                { value: REPORT_LABELS.columns.data },
+                { value: REPORT_LABELS.columns.entrada },
+                { value: REPORT_LABELS.columns.saidaAlmoco },
+                { value: REPORT_LABELS.columns.voltaAlmoco },
+                { value: REPORT_LABELS.columns.saida },
+                { value: REPORT_LABELS.columns.saldoDoDia },
+              ],
+              sixHeaderTertiaryStyle
+            )
 
             item.dias.forEach((dia) => {
               const saldoStyleDia =
                 dia.saldoHoras < 0 ? atrasoStyle : dia.saldoHoras > 0 ? extraStyle : cellStyle
 
-              appendRow([
-                { value: parseLocalDate(dia.data).toLocaleDateString('pt-BR') },
-                { value: dia.entrada },
-                { value: dia.almocInicio },
-                { value: dia.almocFim },
-                { value: dia.saida },
-                { value: formatSaldoDoDia(dia.saldoHoras) },
-              ], [cellStyle, cellStyle, cellStyle, cellStyle, cellStyle, saldoStyleDia])
+              appendRow(
+                [
+                  { value: parseLocalDate(dia.data).toLocaleDateString('pt-BR') },
+                  { value: dia.entrada },
+                  { value: dia.almocInicio },
+                  { value: dia.almocFim },
+                  { value: dia.saida },
+                  { value: formatSaldoDoDia(dia.saldoHoras) },
+                ],
+                [cellStyle, cellStyle, cellStyle, cellStyle, cellStyle, saldoStyleDia]
+              )
             })
           })
         }
@@ -877,7 +929,7 @@ export function RelatoriosPage() {
           )}
 
           <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <p className="mb-3 text-sm font-semibold text-slate-700">Personalizar relatório e planilha exportada</p>
+            <p className="mb-3 text-sm font-semibold text-slate-700">Personalizar exportação Excel</p>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
               <label className="inline-flex items-center gap-2 text-sm text-slate-700">
                 <input
@@ -895,7 +947,7 @@ export function RelatoriosPage() {
                   checked={exportSections.atestadosMedicos}
                   onChange={(e) => setExportSections((prev) => ({ ...prev, atestadosMedicos: e.target.checked }))}
                 />
-                Atestados médicos
+                {REPORT_LABELS.sections.atestadosMedicos}
               </label>
               <label className="inline-flex items-center gap-2 text-sm text-slate-700">
                 <input
@@ -926,17 +978,19 @@ export function RelatoriosPage() {
               <div className="mt-2 text-3xl font-black text-red-700">{absences.length}</div>
             </div>
             <div className="rounded-xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
-              <div className="text-sm font-semibold text-blue-700">Atestados médicos</div>
+              <div className="text-sm font-semibold text-blue-700">{REPORT_LABELS.sections.atestadosMedicos}</div>
               <div className="mt-2 text-3xl font-black text-blue-700">{medicalCertificates.length}</div>
             </div>
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
               <div className="text-sm font-semibold text-amber-700">Atraso consolidado</div>
-              <div className="mt-2 text-3xl font-black text-amber-700">{formatHours(totalAtrasos)}</div>
+              <div className="mt-2 text-3xl font-black text-amber-700">
+                {formatHorasMinutos(-totalAtrasos, { signed: true })}
+              </div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="text-sm font-semibold text-slate-600">Hora extra consolidada</div>
               <div className="mt-2 text-3xl font-black text-slate-900">
-                {formatHours(totalHorasExtras)}
+                {formatHorasMinutos(totalHorasExtras, { signed: true })}
               </div>
             </div>
           </div>
@@ -944,7 +998,7 @@ export function RelatoriosPage() {
           <div className="space-y-8">
             <section className="overflow-hidden rounded-xl bg-white shadow">
               <div className="border-b border-slate-200 px-6 py-4">
-                <h2 className="text-xl font-bold text-slate-900">Fechamento consolidado</h2>
+                <h2 className="text-xl font-bold text-slate-900">{REPORT_LABELS.sections.fechamentoConsolidado}</h2>
               </div>
               <table className="w-full text-sm">
                 <thead className="border-b bg-slate-50">
@@ -953,46 +1007,26 @@ export function RelatoriosPage() {
                     <th className="px-6 py-3 text-left font-semibold text-slate-900">Horas previstas</th>
                     <th className="px-6 py-3 text-left font-semibold text-slate-900">Horas trabalhadas</th>
                     <th className="px-6 py-3 text-left font-semibold text-slate-900">Resultado</th>
-                    <th className="px-6 py-3 text-left font-semibold text-slate-900">Saldo absoluto</th>
+                    <th className="px-6 py-3 text-left font-semibold text-slate-900">Saldo</th>
+                    <th className="px-6 py-3 text-center font-semibold text-slate-900">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {consolidated.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-4 text-center text-slate-500">
+                      <td colSpan={6} className="px-6 py-4 text-center text-slate-500">
                         Nenhum funcionário com saldo de horas positivo ou negativo no período.
                       </td>
                     </tr>
                   ) : (
                     consolidated.map((item) => {
                       const isExpanded = Boolean(expandedConsolidatedEmployees[item.funcionario])
-                      const canExpand = exportSections.horaExtraAtraso && item.dias.length > 0
+                      const canExpand = item.dias.length > 0
 
                       return (
                         <Fragment key={item.funcionario}>
                           <tr className="hover:bg-slate-50">
-                            <td className="px-6 py-4 text-slate-700">
-                              <div className="flex items-center">
-                                <ExpandEyeButton
-                                  expanded={isExpanded}
-                                  visible={canExpand}
-                                  onClick={() =>
-                                    setExpandedConsolidatedEmployees((prev) => ({
-                                      ...prev,
-                                      [item.funcionario]: !prev[item.funcionario],
-                                    }))
-                                  }
-                                />
-                                <span>
-                                  {item.funcionario}
-                                  {canExpand && (
-                                    <span className="ml-2 font-semibold text-slate-900">
-                                      {formatSignedBalanceShort(item.saldoHoras)}
-                                    </span>
-                                  )}
-                                </span>
-                              </div>
-                            </td>
+                            <td className="px-6 py-4 text-slate-700">{item.funcionario}</td>
                             <td className="px-6 py-4 text-slate-700">{formatHours(item.horasPlanejadas)}</td>
                             <td className="px-6 py-4 text-slate-700">{formatHours(item.horasCumpridas)}</td>
                             <td className="px-6 py-4 text-slate-700">{item.tipo}</td>
@@ -1005,13 +1039,25 @@ export function RelatoriosPage() {
                                     : 'bg-slate-100 text-slate-700'
                                   }`}
                               >
-                                {formatHours(item.saldoAbsoluto)}
+                                {formatSignedBalanceShort(item.saldoHoras)}
                               </span>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <ExpandEyeButton
+                                expanded={isExpanded}
+                                visible={canExpand}
+                                onClick={() =>
+                                  setExpandedConsolidatedEmployees((prev) => ({
+                                    ...prev,
+                                    [item.funcionario]: !prev[item.funcionario],
+                                  }))
+                                }
+                              />
                             </td>
                           </tr>
                           {canExpand && isExpanded && (
                             <tr className="bg-slate-50/60">
-                              <td colSpan={5} className="px-6 py-4">
+                              <td colSpan={6} className="px-6 py-4">
                                 <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
                                   <table className="w-full text-sm">
                                     <thead className="border-b bg-slate-50">
@@ -1065,7 +1111,7 @@ export function RelatoriosPage() {
             {feriasInPeriod.length > 0 && (
               <section className="overflow-hidden rounded-xl bg-white shadow">
                 <div className="border-b border-slate-200 px-6 py-4">
-                  <h2 className="text-xl font-bold text-slate-900">Férias</h2>
+                  <h2 className="text-xl font-bold text-slate-900">{REPORT_LABELS.sections.ferias}</h2>
                 </div>
                 <div className="divide-y">
                   {feriasInPeriod.map((group) => (
@@ -1087,32 +1133,26 @@ export function RelatoriosPage() {
 
             <section className="overflow-hidden rounded-xl bg-white shadow">
               <div className="border-b border-slate-200 px-6 py-4">
-                <h2 className="text-xl font-bold text-slate-900">Faltas</h2>
+                <h2 className="text-xl font-bold text-slate-900">{REPORT_LABELS.sections.faltas}</h2>
               </div>
-              {absences.length === 0 ? (
+              {absencesByEmployee.length === 0 ? (
                 <div className="px-6 py-10 text-sm text-slate-500">Nenhuma falta encontrada no período.</div>
               ) : (
                 <>
-                  <table className="w-full text-sm">
-                    <thead className="border-b bg-slate-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Funcionário</th>
-                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Dia</th>
-                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Observação</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {paginatedAbsences.map((item, index) => (
-                        <tr key={`${item.funcionario}-${item.data}-${index}`} className="hover:bg-red-50">
-                          <td className="px-6 py-4 text-slate-700">{item.funcionario}</td>
-                          <td className="px-6 py-4 text-slate-700">
-                            {parseLocalDate(item.data).toLocaleDateString('pt-BR')}
-                          </td>
-                          <td className="px-6 py-4 text-slate-700">{item.observacao}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <EmployeeOccurrenceTable
+                    groups={paginatedAbsencesByEmployee}
+                    quantityLabel={REPORT_LABELS.columns.qtdFaltas}
+                    dateColumnLabel={REPORT_LABELS.columns.dia}
+                    expandedEmployees={expandedAbsenceEmployees}
+                    onToggle={(funcionario) =>
+                      setExpandedAbsenceEmployees((prev) => ({
+                        ...prev,
+                        [funcionario]: !prev[funcionario],
+                      }))
+                    }
+                    rowHoverClass="hover:bg-red-50"
+                    detailRowClass="bg-red-50/40"
+                  />
                   {renderPagination(
                     safeAbsencesPage,
                     absencesTotalPages,
@@ -1125,65 +1165,28 @@ export function RelatoriosPage() {
 
             <section className="overflow-hidden rounded-xl bg-white shadow">
               <div className="border-b border-slate-200 px-6 py-4">
-                <h2 className="text-xl font-bold text-slate-900">Atestados médicos</h2>
+                <h2 className="text-xl font-bold text-slate-900">{REPORT_LABELS.sections.atestadosMedicos}</h2>
               </div>
-              {medicalCertificates.length === 0 ? (
-                <div className="px-6 py-10 text-sm text-slate-500">Nenhum atestado médico encontrado no período.</div>
+              {medicalCertificatesByEmployee.length === 0 ? (
+                <div className="px-6 py-10 text-sm text-slate-500">
+                  Nenhum atestado médico encontrado no período.
+                </div>
               ) : (
                 <>
-                  <table className="w-full text-sm">
-                    <thead className="border-b bg-slate-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Funcionário</th>
-                        <th className="px-6 py-3 text-left font-semibold text-slate-900">Qtd. de atestados</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {paginatedMedicalCertificatesByEmployee.map((group) => {
-                        const isExpanded = Boolean(expandedMedicalEmployees[group.funcionario])
-
-                        return (
-                          <Fragment key={group.funcionario}>
-                            <tr className="hover:bg-blue-50">
-                              <td className="px-6 py-4 text-slate-700">
-                                <div className="flex items-center">
-                                  <ExpandEyeButton
-                                    expanded={isExpanded}
-                                    visible
-                                    onClick={() =>
-                                      setExpandedMedicalEmployees((prev) => ({
-                                        ...prev,
-                                        [group.funcionario]: !prev[group.funcionario],
-                                      }))
-                                    }
-                                  />
-                                  {group.funcionario}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 text-slate-700">{group.total}</td>
-                            </tr>
-
-                            {isExpanded && (
-                              <tr className="bg-blue-50/40">
-                                <td colSpan={2} className="px-6 py-4">
-                                  <div className="space-y-2">
-                                    {(group.itens ?? []).map((item, index) => (
-                                      <div key={`${group.funcionario}-${item.data}-${index}`} className="rounded-lg border border-blue-100 bg-white px-4 py-3">
-                                        <div className="text-sm font-semibold text-slate-900">
-                                          {parseLocalDate(item.data).toLocaleDateString('pt-BR')}
-                                        </div>
-                                        <div className="text-sm text-slate-700">Observação: {item.observacao}</div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </td>
-                              </tr>
-                            )}
-                          </Fragment>
-                        )
-                      })}
-                    </tbody>
-                  </table>
+                  <EmployeeOccurrenceTable
+                    groups={paginatedMedicalCertificatesByEmployee}
+                    quantityLabel={REPORT_LABELS.columns.qtdAtestados}
+                    dateColumnLabel={REPORT_LABELS.columns.data}
+                    expandedEmployees={expandedMedicalEmployees}
+                    onToggle={(funcionario) =>
+                      setExpandedMedicalEmployees((prev) => ({
+                        ...prev,
+                        [funcionario]: !prev[funcionario],
+                      }))
+                    }
+                    rowHoverClass="hover:bg-blue-50"
+                    detailRowClass="bg-blue-50/40"
+                  />
                   {renderPagination(
                     safeMedicalCertificatesPage,
                     medicalCertificatesTotalPages,
