@@ -223,7 +223,7 @@ namespace Portal.Services
                 if (registrosExistentes.TryGetValue(dataUtc.Date, out var registro))
                 {
                     if (applyFerias)
-                        ApplyFeriasStatus(registro);
+                        RegistroPontoStatusRules.ApplyFerias(registro);
                     else
                         await RevertFeriasStatusAsync(registro, funcionarioId, dataUtc);
 
@@ -254,20 +254,11 @@ namespace Portal.Services
                     Excluded = false
                 };
 
-                ApplyFeriasStatus(novo);
+                RegistroPontoStatusRules.ApplyFerias(novo);
                 await _registroPontoRepository.AddAsync(novo);
             }
 
             await _registroPontoRepository.SaveChangesAsync();
-        }
-
-        private static void ApplyFeriasStatus(RegistroPonto registro)
-        {
-            registro.Ferias = true;
-            registro.Presenca = false;
-            registro.Folga = false;
-            registro.Feriado = false;
-            registro.AtestadoMedico = false;
         }
 
         private async Task RevertFeriasStatusAsync(RegistroPonto registro, int funcionarioId, DateTime data)

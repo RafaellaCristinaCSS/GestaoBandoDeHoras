@@ -27,5 +27,18 @@ namespace Portal.Services.Registro
 
             return "Presente";
         }
+
+        public static void ApplyFerias(RegistroPonto registro)
+        {
+            registro.Ferias = true;
+            registro.Presenca = false;
+            registro.Folga = false;
+            registro.Feriado = false;
+            registro.AtestadoMedico = false;
+            registro.HoraEntrada = string.Empty;
+            registro.HoraAlmocoInicio = string.Empty;
+            registro.HoraAlmocoFim = string.Empty;
+            registro.HoraSaida = string.Empty;
+        }
     }
 }

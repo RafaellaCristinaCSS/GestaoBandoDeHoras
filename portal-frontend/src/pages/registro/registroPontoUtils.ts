@@ -87,6 +87,10 @@ export const buildStatusPayload = (status: string): Record<string, string | bool
       atestadoMedico: false,
       ferias: true,
       presenca: false,
+      entrada: '',
+      almocInicio: '',
+      almocFim: '',
+      saida: '',
     }
   }
 
