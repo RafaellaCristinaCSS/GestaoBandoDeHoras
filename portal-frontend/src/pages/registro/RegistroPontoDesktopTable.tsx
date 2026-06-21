@@ -1,6 +1,7 @@
 import { RegistroPonto } from '@/types/api'
 import {
   STATUS_OPTIONS,
+  bloqueiaHorarios,
   getHorasPlanejadas,
   getHorasTrabalhadas,
   isToday,
@@ -39,6 +40,7 @@ export function RegistroPontoDesktopTable({ registros, onCellChange, onStatusCha
                 ? horasTrabalhadas - horasPlanejadas
                 : null
             const linhaDiaAtual = isToday(registro.data)
+            const horariosBloqueados = bloqueiaHorarios(registro.status)
 
             return (
               <tr
@@ -57,32 +59,36 @@ export function RegistroPontoDesktopTable({ registros, onCellChange, onStatusCha
                   <input
                     type="time"
                     value={registro.entrada || ''}
+                    disabled={horariosBloqueados}
                     onChange={(e) => onCellChange(registro.id, 'entrada', e.target.value)}
-                    className="w-20 rounded border border-slate-300 px-2 py-1 text-xs"
+                    className="w-20 rounded border border-slate-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                   />
                 </td>
                 <td className="px-4 py-3">
                   <input
                     type="time"
                     value={registro.almocInicio || ''}
+                    disabled={horariosBloqueados}
                     onChange={(e) => onCellChange(registro.id, 'almocInicio', e.target.value)}
-                    className="w-20 rounded border border-slate-300 px-2 py-1 text-xs"
+                    className="w-20 rounded border border-slate-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                   />
                 </td>
                 <td className="px-4 py-3">
                   <input
                     type="time"
                     value={registro.almocFim || ''}
+                    disabled={horariosBloqueados}
                     onChange={(e) => onCellChange(registro.id, 'almocFim', e.target.value)}
-                    className="w-20 rounded border border-slate-300 px-2 py-1 text-xs"
+                    className="w-20 rounded border border-slate-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                   />
                 </td>
                 <td className="px-4 py-3">
                   <input
                     type="time"
                     value={registro.saida || ''}
+                    disabled={horariosBloqueados}
                     onChange={(e) => onCellChange(registro.id, 'saida', e.target.value)}
-                    className="w-20 rounded border border-slate-300 px-2 py-1 text-xs"
+                    className="w-20 rounded border border-slate-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                   />
                 </td>
                 <td className="px-4 py-3">

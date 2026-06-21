@@ -9,6 +9,7 @@ import { Toast } from '@/components/Toast'
 import { RegistroPontoDesktopTable } from '@/pages/registro/RegistroPontoDesktopTable'
 import { RegistroPontoMobileList } from '@/pages/registro/RegistroPontoMobileList'
 import {
+  bloqueiaHorarios,
   buildStatusPayload,
   getDefaultPeriod,
   parseLocalDate,
@@ -64,6 +65,11 @@ export function RegistroPontoPage() {
 
   const handleCellChange = (registroId: number, field: string, value: string | boolean) => {
     const registroAtual = registros?.find((registro) => registro.id === registroId)
+    const camposHorario = ['entrada', 'almocInicio', 'almocFim', 'saida']
+
+    if (registroAtual && bloqueiaHorarios(registroAtual.status) && camposHorario.includes(field)) {
+      return
+    }
 
     let preserveStatusFlags: Record<string, string | boolean> = {}
     if (registroAtual?.status === 'Feriado') {

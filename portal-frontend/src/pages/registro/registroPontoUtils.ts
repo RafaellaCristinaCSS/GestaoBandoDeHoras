@@ -74,7 +74,17 @@ export const getHorasTrabalhadas = (registro: RegistroPonto) => {
 
   return totalMinutos / 60
 }
-const excecoesHorasPlanejadas = ['folga', 'feriado', 'falta', 'férias', 'ferias']
+const excecoesHorasPlanejadas = ['folga', 'feriado', 'falta', 'férias', 'ferias', 'atestado médico']
+
+export const bloqueiaHorarios = (status: string) =>
+  status === 'Férias' || status === 'Atestado Médico'
+
+const horariosVazios = {
+  entrada: '',
+  almocInicio: '',
+  almocFim: '',
+  saida: '',
+} as const
 
 export const getHorasPlanejadas = (registro: RegistroPonto) =>
   excecoesHorasPlanejadas.includes(registro.status.toLowerCase()) ? 0 : registro.horasPrevistas ?? null
@@ -116,20 +126,29 @@ export const buildStatusPayload = (status: string): Record<string, string | bool
       atestadoMedico: false,
       ferias: true,
       presenca: false,
-      entrada: '',
-      almocInicio: '',
-      almocFim: '',
-      saida: '',
+      ...horariosVazios,
     }
   }
 
-  if (status === 'Feriado' || status === 'Atestado Médico') {
+  if (status === 'Atestado Médico') {
     return {
       folga: false,
-      feriado: status === 'Feriado',
-      atestadoMedico: status === 'Atestado Médico',
+      feriado: false,
+      atestadoMedico: true,
       ferias: false,
       presenca: false,
+      ...horariosVazios,
+    }
+  }
+
+  if (status === 'Feriado') {
+    return {
+      folga: false,
+      feriado: true,
+      atestadoMedico: false,
+      ferias: false,
+      presenca: false,
+      ...horariosVazios,
     }
   }
 
@@ -140,10 +159,7 @@ export const buildStatusPayload = (status: string): Record<string, string | bool
       atestadoMedico: false,
       ferias: false,
       presenca: false,
-      entrada: '',
-      almocInicio: '',
-      almocFim: '',
-      saida: '',
+      ...horariosVazios,
     }
   }
 
@@ -154,19 +170,7 @@ export const buildStatusPayload = (status: string): Record<string, string | bool
       atestadoMedico: false,
       ferias: false,
       presenca: false,
-    }
-  }
-
-  if (status === 'Atestado Médico') {
-    return {
-      feriado: false,
-      atestadoMedico: false,
-      ferias: false,
-      presenca: false,
-      entrada: '',
-      almocInicio: '',
-      almocFim: '',
-      saida: '',
+      ...horariosVazios,
     }
   }
 

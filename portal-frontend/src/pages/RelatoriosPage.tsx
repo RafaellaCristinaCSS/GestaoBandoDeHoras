@@ -757,11 +757,11 @@ export function RelatoriosPage() {
       appendRow(
         [
           { value: REPORT_LABELS.columns.funcionario },
+          { value: '' },
           { value: REPORT_LABELS.columns.horasPrevistas },
           { value: REPORT_LABELS.columns.horasTrabalhadas },
           { value: REPORT_LABELS.columns.resultado },
           { value: REPORT_LABELS.columns.saldo },
-          { value: '' },
         ],
         sixHeaderSecondaryStyle
       )
@@ -770,11 +770,11 @@ export function RelatoriosPage() {
         appendRow(
           [
             { value: item.funcionario },
+            { value: '' },
             { value: toExcelDuration(item.horasPlanejadas), type: 'n', format: '[hh]:mm' },
             { value: toExcelDuration(item.horasCumpridas), type: 'n', format: '[hh]:mm' },
             { value: item.tipo },
             { value: formatSignedBalanceShort(item.saldoHoras) },
-            { value: '' },
           ],
           [cellStyle, cellStyle, cellStyle, cellStyle, saldoStyle, cellStyle]
         )

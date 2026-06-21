@@ -209,12 +209,12 @@ namespace Portal.Services
             entity.EscalaId = vincEscala?.EscalaId;
             entity.FuncionarioEscalaId = vincEscala?.Id;
 
-            if (entity.Ferias)
-                RegistroPontoStatusRules.ApplyFerias(entity);
-            else if (!entity.Feriado && !entity.AtestadoMedico)
+            if (!entity.Ferias && !entity.Feriado && !entity.AtestadoMedico)
             {
                 RegistroPontoEscalaRules.ApplyEscala(entity, escalaDoDia, aplicarFolga: true);
             }
+
+            RegistroPontoStatusRules.EnforceMarcacaoRules(entity, statusAnterior: null);
 
             entity.StartDate = DateTime.UtcNow;
             entity.Excluded = false;
@@ -233,6 +233,8 @@ namespace Portal.Services
         {
             var entity = await _repository.GetByIdAsync(id);
             if (entity == null) return false;
+
+            var statusAnterior = RegistroPontoStatusRules.CaptureSnapshot(entity);
 
             var funcionarioEfetivo = dto.FuncionarioId ?? entity.FuncionarioId;
             var dataEfetiva = dto.Data ?? entity.Data;
@@ -278,8 +280,7 @@ namespace Portal.Services
             if (dto.Ferias != null)
                 entity.Ferias = dto.Ferias ?? entity.Ferias;
 
-            if (entity.Ferias)
-                RegistroPontoStatusRules.ApplyFerias(entity);
+            RegistroPontoStatusRules.EnforceMarcacaoRules(entity, statusAnterior);
 
             if (entity.Presenca && !entity.Feriado && !entity.AtestadoMedico && !entity.Ferias && funcionarioEfetivo.HasValue)
             {
