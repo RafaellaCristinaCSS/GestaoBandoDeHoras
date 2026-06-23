@@ -2,6 +2,7 @@ import { RegistroPonto } from '@/types/api'
 import {
   STATUS_OPTIONS,
   bloqueiaHorarios,
+  getHorarioExibicao,
   getHorasPlanejadas,
   getHorasTrabalhadas,
   isToday,
@@ -65,7 +66,7 @@ export function RegistroPontoMobileList({ registros, onCellChange, onStatusChang
                 Entrada
                 <input
                   type="time"
-                  value={registro.entrada || ''}
+                  value={getHorarioExibicao(registro, 'entrada')}
                   disabled={horariosBloqueados}
                   onChange={(e) => onCellChange(registro.id, 'entrada', e.target.value)}
                   className="mt-1 w-full rounded border border-slate-300 px-2 py-2 text-sm disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
@@ -75,7 +76,7 @@ export function RegistroPontoMobileList({ registros, onCellChange, onStatusChang
                 Saída
                 <input
                   type="time"
-                  value={registro.saida || ''}
+                  value={getHorarioExibicao(registro, 'saida')}
                   disabled={horariosBloqueados}
                   onChange={(e) => onCellChange(registro.id, 'saida', e.target.value)}
                   className="mt-1 w-full rounded border border-slate-300 px-2 py-2 text-sm disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
@@ -85,7 +86,7 @@ export function RegistroPontoMobileList({ registros, onCellChange, onStatusChang
                 Almoço início
                 <input
                   type="time"
-                  value={registro.almocInicio || ''}
+                  value={getHorarioExibicao(registro, 'almocInicio')}
                   disabled={horariosBloqueados}
                   onChange={(e) => onCellChange(registro.id, 'almocInicio', e.target.value)}
                   className="mt-1 w-full rounded border border-slate-300 px-2 py-2 text-sm disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
@@ -95,7 +96,7 @@ export function RegistroPontoMobileList({ registros, onCellChange, onStatusChang
                 Almoço fim
                 <input
                   type="time"
-                  value={registro.almocFim || ''}
+                  value={getHorarioExibicao(registro, 'almocFim')}
                   disabled={horariosBloqueados}
                   onChange={(e) => onCellChange(registro.id, 'almocFim', e.target.value)}
                   className="mt-1 w-full rounded border border-slate-300 px-2 py-2 text-sm disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"

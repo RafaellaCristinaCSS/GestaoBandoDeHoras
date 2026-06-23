@@ -54,7 +54,17 @@ const normalizeRangeMinutes = (start: number, end: number) => {
   return end
 }
 
+export const bloqueiaHorarios = (status: string) =>
+  status === 'Férias' || status === 'Atestado Médico'
+
+export const getHorarioExibicao = (
+  registro: RegistroPonto,
+  field: 'entrada' | 'almocInicio' | 'almocFim' | 'saida'
+) => (bloqueiaHorarios(registro.status) ? '' : registro[field] || '')
+
 export const getHorasTrabalhadas = (registro: RegistroPonto) => {
+  if (bloqueiaHorarios(registro.status)) return null
+
   const marcacoes = [
     toMinutes(registro.entrada),
     toMinutes(registro.almocInicio),
@@ -75,9 +85,6 @@ export const getHorasTrabalhadas = (registro: RegistroPonto) => {
   return totalMinutos / 60
 }
 const excecoesHorasPlanejadas = ['folga', 'feriado', 'falta', 'férias', 'ferias', 'atestado médico']
-
-export const bloqueiaHorarios = (status: string) =>
-  status === 'Férias' || status === 'Atestado Médico'
 
 const horariosVazios = {
   entrada: '',

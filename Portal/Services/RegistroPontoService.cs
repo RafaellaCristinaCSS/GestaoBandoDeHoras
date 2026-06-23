@@ -103,7 +103,8 @@ namespace Portal.Services
 
             var registrosFiltrados = (await _repository.GetFilteredAsync(funcionarioId, mes, ano, dataInicio, dataFim)).ToList();
 
-            var atualizouRegistrosExistentes = false;
+            var atualizouRegistrosExistentes = await SanitizeHorariosBloqueadosAsync(registrosFiltrados);
+
             foreach (var registro in registrosFiltrados)
             {
                 var deveReaplicar = forcarRetroativo
@@ -161,12 +162,34 @@ namespace Portal.Services
             return list.Select(RegistroPontoMapper.ToReadDto);
         }
 
+        private async Task<bool> SanitizeHorariosBloqueadosAsync(IEnumerable<RegistroPonto> registros)
+        {
+            var corrigiu = false;
+
+            foreach (var registro in registros)
+            {
+                if (!RegistroPontoStatusRules.EnsureHorariosConsistentes(registro))
+                    continue;
+
+                registro.ChangeDate = DateTime.UtcNow;
+                await _repository.UpdateAsync(registro);
+                corrigiu = true;
+            }
+
+            if (corrigiu)
+                await _repository.SaveChangesAsync();
+
+            return corrigiu;
+        }
+
         private static List<RegistroPonto> SelecionarRegistrosUnicosPorDia(IEnumerable<RegistroPonto> registros)
         {
             return registros
                 .GroupBy(r => new { r.FuncionarioId, Dia = r.Data.Date })
                 .Select(g => g
-                    .OrderByDescending(RegistroPontoStatusRules.HasMarcacaoReal)
+                    .OrderByDescending(r => RegistroPontoStatusRules.BloqueiaHorarios(r))
+                    .ThenByDescending(r => r.Ferias || r.AtestadoMedico || r.Feriado || r.Folga)
+                    .ThenByDescending(r => RegistroPontoStatusRules.HasMarcacaoReal(r))
                     .ThenByDescending(r => r.ChangeDate.HasValue)
                     .ThenByDescending(r => r.ChangeDate ?? r.StartDate)
                     .ThenByDescending(r => r.Id)
@@ -179,6 +202,13 @@ namespace Portal.Services
         {
             var entity = await _repository.GetByIdAsync(id);
             if (entity == null) return null;
+
+            if (RegistroPontoStatusRules.EnsureHorariosConsistentes(entity))
+            {
+                entity.ChangeDate = DateTime.UtcNow;
+                await _repository.UpdateAsync(entity);
+                await _repository.SaveChangesAsync();
+            }
 
             return RegistroPontoMapper.ToReadDto(entity);
         }

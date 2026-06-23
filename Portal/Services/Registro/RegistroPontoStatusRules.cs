@@ -6,11 +6,14 @@ namespace Portal.Services.Registro
     {
         internal readonly record struct StatusSnapshot(bool Ferias, bool AtestadoMedico, bool Feriado, bool Folga);
 
+        private static bool IsMarcacaoValida(string? hora)
+            => !string.IsNullOrWhiteSpace(hora) && hora != "00:00";
+
         public static bool HasMarcacaoReal(RegistroPonto registro)
-            => !string.IsNullOrWhiteSpace(registro.HoraEntrada)
-                || !string.IsNullOrWhiteSpace(registro.HoraAlmocoInicio)
-                || !string.IsNullOrWhiteSpace(registro.HoraAlmocoFim)
-                || !string.IsNullOrWhiteSpace(registro.HoraSaida);
+            => IsMarcacaoValida(registro.HoraEntrada)
+                || IsMarcacaoValida(registro.HoraAlmocoInicio)
+                || IsMarcacaoValida(registro.HoraAlmocoFim)
+                || IsMarcacaoValida(registro.HoraSaida);
 
         public static bool BloqueiaHorarios(RegistroPonto registro)
             => registro.Ferias || registro.AtestadoMedico;
@@ -99,6 +102,19 @@ namespace Portal.Services.Registro
                 registro.AtestadoMedico = false;
                 ClearHorarios(registro);
             }
+        }
+
+        /// <summary>
+        /// Garante que férias e atestado médico nunca mantenham horários registrados.
+        /// Retorna true quando alguma correção foi aplicada.
+        /// </summary>
+        public static bool EnsureHorariosConsistentes(RegistroPonto registro)
+        {
+            if (!BloqueiaHorarios(registro) || !HasMarcacaoReal(registro))
+                return false;
+
+            EnforceMarcacaoRules(registro, CaptureSnapshot(registro));
+            return true;
         }
     }
 }
