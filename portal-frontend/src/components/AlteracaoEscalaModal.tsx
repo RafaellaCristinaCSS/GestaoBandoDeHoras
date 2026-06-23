@@ -28,14 +28,14 @@ const formatDateLabel = (value: string) =>
 
 function EstadoCard({ titulo, estado }: { titulo: string; estado: RegistroDivergencia['antes'] }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3">
-      <div className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">{titulo}</div>
-      <div className="space-y-1 text-sm text-slate-700">
-        <div><span className="font-semibold">Status:</span> {estado.status}</div>
-        <div><span className="font-semibold">Jornada:</span> {estado.jornadaPrevista}</div>
-        {estado.entrada && <div><span className="font-semibold">Entrada:</span> {estado.entrada}</div>}
-        {estado.saida && <div><span className="font-semibold">Saída:</span> {estado.saida}</div>}
-        <div><span className="font-semibold">Saldo:</span> {estado.saldoHorasFormatado}</div>
+    <div className="min-w-0 rounded-lg border border-slate-200 bg-white p-4">
+      <div className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-500">{titulo}</div>
+      <div className="space-y-2 text-sm text-slate-700">
+        <div className="flex flex-wrap gap-x-2"><span className="shrink-0 font-semibold">Status:</span> <span>{estado.status}</span></div>
+        <div className="flex flex-wrap gap-x-2"><span className="shrink-0 font-semibold">Jornada:</span> <span>{estado.jornadaPrevista}</span></div>
+        {estado.entrada && <div className="flex flex-wrap gap-x-2"><span className="shrink-0 font-semibold">Entrada:</span> <span>{estado.entrada}</span></div>}
+        {estado.saida && <div className="flex flex-wrap gap-x-2"><span className="shrink-0 font-semibold">Saída:</span> <span>{estado.saida}</span></div>}
+        <div className="flex flex-wrap gap-x-2"><span className="shrink-0 font-semibold">Saldo:</span> <span>{estado.saldoHorasFormatado}</span></div>
       </div>
     </div>
   )
@@ -196,7 +196,7 @@ export function AlteracaoEscalaModal({ funcionario, isOpen, onClose, onSuccess, 
     (!isDoze36 || trabalhaDiaPar !== null)
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title={`Alterar escala — ${funcionario.nome}`}>
+    <Modal isOpen={isOpen} onClose={handleClose} title={`Alterar escala — ${funcionario.nome}`} size="wide">
       <div className="space-y-6">
         {!simulacao ? (
           <>
@@ -289,9 +289,9 @@ export function AlteracaoEscalaModal({ funcionario, isOpen, onClose, onSuccess, 
               </label>
             )}
 
-            <div className="max-h-[420px] space-y-4 overflow-y-auto pr-1">
+            <div className="max-h-[480px] space-y-4 overflow-y-auto pr-1">
               {registrosVisiveis.map((item) => (
-                <div key={item.registroId} className="rounded-xl border border-slate-200 p-4">
+                <div key={item.registroId} className="rounded-xl border border-slate-200 p-5">
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <div className="text-sm font-semibold text-slate-900">
                       {formatDateLabel(item.data)}
@@ -333,7 +333,7 @@ export function AlteracaoEscalaModal({ funcionario, isOpen, onClose, onSuccess, 
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                     <EstadoCard titulo="Antes" estado={item.antes} />
                     <EstadoCard titulo="Nova escala" estado={item.novaEscala} />
                     <EstadoCard titulo="Resultado sugerido" estado={item.resultadoSugerido} />

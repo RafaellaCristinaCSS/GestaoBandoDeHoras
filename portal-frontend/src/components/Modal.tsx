@@ -6,7 +6,7 @@ interface ModalProps {
   onClose: () => void
   title: string
   children: ReactNode
-  size?: 'md' | 'lg' | 'xl' | '2xl'
+  size?: 'md' | 'lg' | 'xl' | '2xl' | 'wide'
 }
 
 const sizeClassMap = {
@@ -14,6 +14,7 @@ const sizeClassMap = {
   lg: 'max-w-lg',
   xl: 'max-w-3xl',
   '2xl': 'max-w-5xl',
+  wide: 'w-[90vw] max-w-[1400px]',
 }
 
 export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalProps) {
