@@ -140,14 +140,8 @@ namespace Portal.Services
             var entity = await _repository.GetByIdAsync(id);
             if (entity == null) return false;
 
-            Escala? novaEscala = null;
-            var escalaAtual = await _funcionarioEscalaRepository.GetCurrentByFuncionarioIdAsync(entity.Id);
-
             if (dto.EscalaId.HasValue)
-            {
-                novaEscala = await _escalaRepository.GetByIdAsync(dto.EscalaId.Value);
-                if (novaEscala == null) throw new Exception("Escala informada não foi encontrada.");
-            }
+                throw new Exception("A escala do funcionário deve ser alterada pelo fluxo de Alteração de Escala.");
 
             if (dto.FuncionarioId != null)
                 entity.FuncionarioId = dto.FuncionarioId ?? entity.FuncionarioId;
@@ -165,58 +159,12 @@ namespace Portal.Services
 
             entity.Ativo = !entity.DataDemissao.HasValue || entity.DataDemissao.Value.Date >= DateTime.UtcNow.Date;
 
-            if (novaEscala != null)
-                entity.CargaHorariaSemanal = (int)novaEscala.CargaHorariaSemanal;
-
             entity.ChangeDate = DateTime.UtcNow;
 
             await using var transaction = await _context.Database.BeginTransactionAsync();
 
             await _repository.UpdateAsync(entity);
             await _repository.SaveChangesAsync();
-
-            if (novaEscala != null)
-            {
-                var hoje = DateTime.UtcNow.Date;
-                var inicioCompetenciaAtual = ObterInicioCompetenciaAtual(DateTime.UtcNow);
-
-                if (escalaAtual == null)
-                {
-                    await _funcionarioEscalaRepository.AddAsync(new FuncionarioEscala
-                    {
-                        FuncionarioId = entity.Id,
-                        EscalaId = novaEscala.Id,
-                        DataInicio = inicioCompetenciaAtual,
-                        TrabalhaDiaPar = novaEscala.TipoEscala == TipoEscala.Doze36 ? novaEscala.TrabalhaDiaParPadrao : null,
-                        CreatedByUserId = dto.UpdatedByUserId ?? 0
-                    });
-                }
-                else if (escalaAtual.EscalaId != novaEscala.Id)
-                {
-                    if (escalaAtual.DataInicio.Date == hoje)
-                    {
-                        escalaAtual.EscalaId = novaEscala.Id;
-                        escalaAtual.TrabalhaDiaPar = novaEscala.TipoEscala == TipoEscala.Doze36 ? novaEscala.TrabalhaDiaParPadrao : null;
-                        await _funcionarioEscalaRepository.UpdateAsync(escalaAtual);
-                    }
-                    else
-                    {
-                        escalaAtual.DataFim = hoje.AddDays(-1);
-                        await _funcionarioEscalaRepository.UpdateAsync(escalaAtual);
-
-                        await _funcionarioEscalaRepository.AddAsync(new FuncionarioEscala
-                        {
-                            FuncionarioId = entity.Id,
-                            EscalaId = novaEscala.Id,
-                            DataInicio = hoje,
-                            TrabalhaDiaPar = novaEscala.TipoEscala == TipoEscala.Doze36 ? novaEscala.TrabalhaDiaParPadrao : null,
-                            CreatedByUserId = dto.UpdatedByUserId ?? 0
-                        });
-                    }
-                }
-
-                await _funcionarioEscalaRepository.SaveChangesAsync();
-            }
 
             await transaction.CommitAsync();
             return true;

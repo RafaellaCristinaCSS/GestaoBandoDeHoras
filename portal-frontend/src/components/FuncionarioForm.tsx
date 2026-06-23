@@ -10,7 +10,6 @@ import Select from 'react-select'
 import { Funcionario, CreateFuncionarioDTO } from '@/types/api'
 import { cargoService } from '@/services/cargoService'
 import { escalaService } from '@/services/escalaService'
-import { registroPontoService } from '@/services/registroPontoService'
 
 interface FuncionarioFormProps {
   onSubmit: (data: CreateFuncionarioDTO) => Promise<void>
@@ -46,6 +45,7 @@ export function FuncionarioForm({ onSubmit, initialData, isLoading }: Funcionari
   const [novoCargo, setNovoCargo] = useState('')
   const selectMenuPortalTarget = typeof document !== 'undefined' ? document.body : null
   const isEditing = Boolean(initialData)
+  const escalaSomenteLeitura = isEditing
   const defaultValues: FuncionarioFormData = initialData
     ? {
         nome: initialData.nome,
@@ -71,16 +71,6 @@ export function FuncionarioForm({ onSubmit, initialData, isLoading }: Funcionari
     queryKey: ['escalas'],
     queryFn: escalaService.getAll,
   })
-
-  const { data: registrosFuncionario, isLoading: isLoadingRegistrosFuncionario } = useQuery({
-    queryKey: ['registros-ponto-funcionario', initialData?.id],
-    queryFn: () => registroPontoService.getAll(initialData!.id),
-    enabled: isEditing && Boolean(initialData?.id),
-  })
-
-  const possuiRegistros = Boolean(registrosFuncionario && registrosFuncionario.length > 0)
-  const possuiEscalaAtual = Boolean(initialData?.escalaId)
-  const bloquearEdicaoEscala = isEditing && possuiRegistros && possuiEscalaAtual
 
   const createCargoMutation = useMutation({
     mutationFn: (nome: string) => cargoService.create({ nome }),
@@ -224,13 +214,11 @@ export function FuncionarioForm({ onSubmit, initialData, isLoading }: Funcionari
                 isClearable={!isEditing}
                 isSearchable
                 isLoading={isLoadingEscalas}
-                isDisabled={isLoadingRegistrosFuncionario || bloquearEdicaoEscala}
+                isDisabled={escalaSomenteLeitura}
                 placeholder={
-                  isLoadingRegistrosFuncionario
-                    ? 'Verificando registros de ponto...'
-                    : bloquearEdicaoEscala
-                      ? 'Escala bloqueada por existir registro de ponto'
-                      : 'Busque e selecione a escala'
+                  escalaSomenteLeitura
+                    ? 'Use "Alterar escala" na listagem para trocar a escala'
+                    : 'Busque e selecione a escala'
                 }
                 noOptionsMessage={() => 'Nenhuma escala ativa encontrada'}
                 value={escalaOptionsComAtual.find((option) => option.value === field.value) ?? null}
@@ -246,6 +234,11 @@ export function FuncionarioForm({ onSubmit, initialData, isLoading }: Funcionari
         </div>
         
         {errors.escalaId && <p className="mt-1 text-sm text-red-600">{errors.escalaId.message}</p>}
+        {escalaSomenteLeitura && (
+          <p className="mt-1 text-xs text-slate-500">
+            A escala não pode ser alterada aqui. Utilize o botão &quot;Alterar escala&quot; na listagem de funcionários.
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

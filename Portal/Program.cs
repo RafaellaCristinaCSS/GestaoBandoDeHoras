@@ -146,6 +146,7 @@ builder.Services.AddScoped<IFuncionarioService,FuncionarioService>();
 builder.Services.AddScoped<ICargoService,CargoService>();
 builder.Services.AddScoped<IEscalaService,EscalaService>();
 builder.Services.AddScoped<IFuncionarioEscalaService,FuncionarioEscalaService>();
+builder.Services.AddScoped<IAlteracaoEscalaService,AlteracaoEscalaService>();
 builder.Services.AddScoped<IRegistroPontoService,RegistroPontoService>();
 builder.Services.AddScoped<IFeriasService,FeriasService>();
 

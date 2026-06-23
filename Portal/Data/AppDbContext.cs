@@ -14,6 +14,7 @@ namespace Portal.Data
         public DbSet<FuncionarioEscala> FuncionarioEscala { get; set; } = default!;
         public DbSet<RegistroPonto> RegistroPonto { get; set; } = default!;
         public DbSet<Ferias> Ferias { get; set; } = default!;
+        public DbSet<AlteracaoEscalaAuditoria> AlteracaoEscalaAuditoria { get; set; } = default!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -81,6 +82,16 @@ namespace Portal.Data
                 .HasOne(f => f.Funcionario)
                 .WithMany()
                 .HasForeignKey(f => f.FuncionarioId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<AlteracaoEscalaAuditoria>()
+                .Property(e => e.Id)
+                .UseIdentityAlwaysColumn();
+
+            modelBuilder.Entity<AlteracaoEscalaAuditoria>()
+                .HasOne(a => a.Funcionario)
+                .WithMany()
+                .HasForeignKey(a => a.FuncionarioId)
                 .OnDelete(DeleteBehavior.Restrict);
         }
     }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Edit2 } from 'lucide-react'
+import { Plus, Edit2, RefreshCw } from 'lucide-react'
 import { funcionarioService } from '@/services/funcionarioService'
 import { registroPontoService } from '@/services/registroPontoService'
 import { Loading } from '@/components/Loading'
@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/EmptyState'
 import { Modal } from '@/components/Modal'
 import { FuncionarioForm, FuncionarioFormData } from '@/components/FuncionarioForm'
 import { Funcionario, UpdateFuncionarioDTO } from '@/types/api'
+import { AlteracaoEscalaModal } from '@/components/AlteracaoEscalaModal'
 import { Toast } from '@/components/Toast'
 
 type SortField = 'nome' | 'cargo' | 'escalaNome' | 'dataAdmissao' | 'dataDemissao'
@@ -31,6 +32,7 @@ export function FuncionariosPage() {
   const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
+  const [alteracaoEscalaFuncionario, setAlteracaoEscalaFuncionario] = useState<Funcionario | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState('')
@@ -106,6 +108,8 @@ export function FuncionariosPage() {
         ...data,
         removerDataDemissao: !data.dataDemissao,
       }
+
+      delete payload.escalaId
 
       if (!data.dataDemissao) {
         delete payload.dataDemissao
@@ -279,7 +283,7 @@ export function FuncionariosPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm">
-                      <div className="flex gap-3">
+                      <div className="flex flex-wrap gap-3">
                         <button
                           onClick={() => handleEdit(func)}
                           className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
@@ -287,6 +291,15 @@ export function FuncionariosPage() {
                           <Edit2 size={16} />
                           Editar
                         </button>
+                        {getStatusFuncionario(func) === 'Admitido' && (
+                          <button
+                            onClick={() => setAlteracaoEscalaFuncionario(func)}
+                            className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                          >
+                            <RefreshCw size={16} />
+                            Alterar escala
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -333,6 +346,16 @@ export function FuncionariosPage() {
           isLoading={createMutation.isPending || updateMutation.isPending}
         />
       </Modal>
+
+      {alteracaoEscalaFuncionario && (
+        <AlteracaoEscalaModal
+          funcionario={alteracaoEscalaFuncionario}
+          isOpen={Boolean(alteracaoEscalaFuncionario)}
+          onClose={() => setAlteracaoEscalaFuncionario(null)}
+          onSuccess={(message) => setToast({ message, type: 'success' })}
+          onError={(message) => setToast({ message, type: 'error' })}
+        />
+      )}
     </div>
   )
 }

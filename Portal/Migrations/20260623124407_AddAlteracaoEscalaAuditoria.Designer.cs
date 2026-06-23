@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Portal.Data;
@@ -11,9 +12,11 @@ using Portal.Data;
 namespace Portal.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260623124407_AddAlteracaoEscalaAuditoria")]
+    partial class AddAlteracaoEscalaAuditoria
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -116,51 +119,6 @@ namespace Portal.Migrations
                     b.HasIndex("EscalaId");
 
                     b.ToTable("EscalaDetalhe");
-                });
-
-            modelBuilder.Entity("Portal.Models.AlteracaoEscalaAuditoria", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("DataAlteracao")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("DataVigencia")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("EscalaAnteriorId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("FuncionarioId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("NovaEscalaId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("RegistrosAlteradosAutomaticamente")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("RegistrosAlteradosManualmente")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("TotalRegistrosAnalisados")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("TotalRegistrosImpactados")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("UsuarioId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FuncionarioId");
-
-                    b.ToTable("AlteracaoEscalaAuditoria");
                 });
 
             modelBuilder.Entity("Portal.Models.Ferias", b =>
@@ -391,17 +349,6 @@ namespace Portal.Migrations
                         .IsRequired();
 
                     b.Navigation("Escala");
-                });
-
-            modelBuilder.Entity("Portal.Models.AlteracaoEscalaAuditoria", b =>
-                {
-                    b.HasOne("Portal.Models.Funcionario", "Funcionario")
-                        .WithMany()
-                        .HasForeignKey("FuncionarioId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Funcionario");
                 });
 
             modelBuilder.Entity("Portal.Models.Ferias", b =>

@@ -134,6 +134,87 @@ export interface CreateFuncionarioEscalaDTO {
   createdByUserId: number
 }
 
+export interface RegistroEstado {
+  status: string
+  jornadaPrevista: string
+  horasPrevistas?: number
+  horasPrevistasFormatadas: string
+  entrada?: string
+  almocInicio?: string
+  almocFim?: string
+  saida?: string
+  horasTrabalhadas?: number
+  horasTrabalhadasFormatadas: string
+  saldoHoras?: number
+  saldoHorasFormatado: string
+}
+
+export interface RegistroDivergencia {
+  registroId: number
+  data: string
+  antes: RegistroEstado
+  novaEscala: RegistroEstado
+  resultadoSugerido: RegistroEstado
+  sugestaoAutomatica: string
+  possuiDivergencia: boolean
+}
+
+export interface SimularAlteracaoEscalaDTO {
+  funcionarioId: number
+  novaEscalaId: number
+  dataVigencia: string
+  trabalhaDiaPar?: boolean
+}
+
+export interface SimulacaoAlteracaoEscalaResult {
+  funcionarioId: number
+  funcionarioNome: string
+  escalaAtualId?: number
+  escalaAtualNome: string
+  novaEscalaId: number
+  novaEscalaNome: string
+  dataVigencia: string
+  totalRegistrosAnalisados: number
+  totalRegistrosImpactados: number
+  afetaRegistrosHistoricos: boolean
+  avisoHistorico: string
+  registros: RegistroDivergencia[]
+}
+
+export interface RegistroEstadoManual {
+  presenca: boolean
+  folga: boolean
+  feriado: boolean
+  atestadoMedico: boolean
+  ferias: boolean
+  entrada?: string
+  almocInicio?: string
+  almocFim?: string
+  saida?: string
+}
+
+export interface RegistroAlteracaoDecisao {
+  registroId: number
+  acao: 'aplicar_sugestao' | 'manter_atual' | 'manual'
+  manual?: RegistroEstadoManual
+}
+
+export interface ConfirmarAlteracaoEscalaDTO {
+  funcionarioId: number
+  novaEscalaId: number
+  dataVigencia: string
+  trabalhaDiaPar?: boolean
+  usuarioId: number
+  decisoes: RegistroAlteracaoDecisao[]
+}
+
+export interface ConfirmarAlteracaoEscalaResult {
+  auditoriaId: number
+  funcionarioEscalaId: number
+  registrosAlteradosAutomaticamente: number
+  registrosAlteradosManualmente: number
+}
+
 // Registro de Ponto
 
 export interface RegistroPonto {
